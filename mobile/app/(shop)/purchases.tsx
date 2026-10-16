@@ -6,7 +6,7 @@ import { api } from "../../services/api";
 import { Page, ShopProduct } from "../../types";
 
 type Supplier = { id: number; name: string; phone: string; balance: string };
-type Line = { sp: ShopProduct; qty: string; cost: string };
+type Line = { sp: ShopProduct; qty: string; cost: string; expiry: string };
 
 export default function Purchases() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -45,10 +45,10 @@ export default function Purchases() {
     try { setResults((await api<Page<ShopProduct>>(`/shop/products/?search=${encodeURIComponent(t)}`)).results); } catch {}
   };
   const addLine = (sp: ShopProduct) => {
-    if (!lines.find((l) => l.sp.id === sp.id)) setLines([...lines, { sp, qty: "1", cost: sp.purchase_cost ?? "" }]);
+    if (!lines.find((l) => l.sp.id === sp.id)) setLines([...lines, { sp, qty: "1", cost: sp.purchase_cost ?? "", expiry: "" }]);
     setSearch(""); setResults([]);
   };
-  const setLine = (id: number, k: "qty" | "cost", v: string) => setLines(lines.map((l) => (l.sp.id === id ? { ...l, [k]: v } : l)));
+  const setLine = (id: number, k: "qty" | "cost" | "expiry", v: string) => setLines(lines.map((l) => (l.sp.id === id ? { ...l, [k]: v } : l)));
 
   const total = lines.reduce((a, l) => a + (Number(l.qty) || 0) * (Number(l.cost) || 0), 0);
 
@@ -62,7 +62,7 @@ export default function Purchases() {
           client_txn_id: txnId.current,
           supplier: buyFrom.id,
           invoice_number: invoice,
-          items: lines.map((l) => ({ shop_product: l.sp.id, quantity: l.qty, unit_cost: l.cost })),
+          items: lines.map((l) => ({ shop_product: l.sp.id, quantity: l.qty, unit_cost: l.cost, expiry_date: l.expiry || null })),
           payments: paidAmount > 0 ? [{ method, amount: paidAmount.toFixed(2) }] : [],
         },
       });
@@ -90,6 +90,8 @@ export default function Purchases() {
                 <Input keyboardType="decimal-pad" value={l.qty} onChangeText={(v) => setLine(l.sp.id, "qty", v)} />
                 <Muted>Cost per unit (₹)</Muted>
                 <Input keyboardType="decimal-pad" value={l.cost} onChangeText={(v) => setLine(l.sp.id, "cost", v)} />
+                <Muted>Expiry date (YYYY-MM-DD, optional)</Muted>
+                <Input placeholder="2027-03-31" value={l.expiry} onChangeText={(v) => setLine(l.sp.id, "expiry", v)} />
               </Card>
             ))}
             <Text style={{ fontSize: 18, fontWeight: "700" }}>Total ₹{total.toFixed(2)}</Text>

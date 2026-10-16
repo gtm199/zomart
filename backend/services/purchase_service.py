@@ -61,7 +61,7 @@ def _create(shop, user, client_txn_id, supplier_id, items, payments, invoice_num
             raise BusinessRuleError(f"{sp.master_product.display_name} is counted in whole pieces.", "invalid_quantity")
         line_total = money(quantity * unit_cost)
         total += line_total
-        lines.append((sp, quantity, unit_cost, line_total))
+        lines.append((sp, quantity, unit_cost, line_total, row.get("expiry_date")))
 
     paid, pay_rows = Decimal("0"), []
     for p in payments:
@@ -78,7 +78,7 @@ def _create(shop, user, client_txn_id, supplier_id, items, payments, invoice_num
         shop=shop, supplier=supplier, invoice_number=invoice_number, client_txn_id=client_txn_id,
         purchase_date=purchase_date or timezone.localdate(), total=total, amount_paid=paid, amount_due=due,
         notes=notes, created_by=user)
-    for sp, quantity, unit_cost, line_total in lines:
+    for sp, quantity, unit_cost, line_total, expiry in lines:
         PurchaseItem.objects.create(purchase=purchase, shop_product=sp, product_name=sp.master_product.display_name,
                                     quantity=quantity, unit_cost=unit_cost, line_total=line_total)
         inventory_service.apply_movement(
@@ -87,6 +87,12 @@ def _create(shop, user, client_txn_id, supplier_id, items, payments, invoice_num
             note=f"Supplier invoice {invoice_number}".strip())
         # latest purchase cost; queryset update so we never overwrite the stock balance with a stale copy
         ShopProduct.objects.filter(pk=sp.pk).update(purchase_cost=unit_cost, updated_at=timezone.now())
+        if expiry:
+            # keep the older date if old stock is still on the shelf; otherwise use the new lot's date
+            keep_old = sp.expiry_date and sp.stock_qty > 0 and sp.expiry_date < expiry
+            if not keep_old:
+                ShopProduct.objects.filter(pk=sp.pk).update(expiry_date=expiry)
+                
     for method, amount, reference in pay_rows:
         SupplierPayment.objects.create(shop=shop, supplier=supplier, purchase=purchase,
                                        kind=SupplierPayment.Kind.PURCHASE, method=method, amount=amount,

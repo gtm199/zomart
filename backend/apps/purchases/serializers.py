@@ -34,6 +34,7 @@ class PurchaseItemInputSerializer(serializers.Serializer):
     shop_product = serializers.IntegerField()
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3, min_value=Decimal("0.001"))
     unit_cost = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))
+    expiry_date = serializers.DateField(required=False, allow_null=True, default=None)
 
 
 class PurchasePaymentInputSerializer(serializers.Serializer):

@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Button, Muted, Screen, colors } from "../../components/ui";
+import { api } from "../../services/api";
 import { useSession } from "../../store/session";
 
 const ITEMS = [
@@ -15,6 +17,17 @@ const ITEMS = [
 export default function Menu() {
   const router = useRouter();
   const { shop, can, signOut } = useSession();
+  const [alerts, setAlerts] = useState<{ expired_count: number; expiring_soon_count: number } | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!can("view_products")) return;
+      api("/shop/products/expiry-alerts/").then(setAlerts).catch(() => {});
+    }, [])
+  );
+
+  const expired = alerts?.expired_count ?? 0;
+  const soon = alerts?.expiring_soon_count ?? 0;
 
   return (
     <Screen>
@@ -22,6 +35,19 @@ export default function Menu() {
         <Text style={{ fontSize: 18, fontWeight: "700" }}>{shop?.name}</Text>
         <Muted>Role: {shop?.role}</Muted>
         <View style={{ height: 12 }} />
+
+        {expired + soon > 0 && (
+          <Pressable
+            onPress={() => router.navigate("/(shop)/stock")}
+            style={{ backgroundColor: "#fef3c7", borderRadius: 10, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: "#f59e0b" }}
+          >
+            <Text style={{ fontWeight: "700", color: expired > 0 ? colors.danger : "#b45309" }}>
+              {expired > 0 ? `${expired} product(s) expired. ` : ""}
+              {soon > 0 ? `${soon} expiring within 30 days.` : ""}
+            </Text>
+            <Muted>Tap to open My Stock</Muted>
+          </Pressable>
+        )}
 
         {ITEMS.filter((i) => can(i.cap)).map((item) => (
           <Pressable

@@ -8,7 +8,10 @@ from apps.shops.roles import Cap
 from core.tenancy import ShopScopedMixin
 from services import barcode_service, inventory_service
 
-from .models import ShopProduct
+from datetime import timedelta
+from django.utils import timezone
+from .models import DEFAULT_LOW_STOCK_LEVEL, EXPIRY_ALERT_DAYS, ShopProduct
+
 from .serializers import (ShopProductCreateSerializer, ShopProductSerializer, ShopProductUpdateSerializer,
                           StockAdjustmentSerializer, StockMovementSerializer)
 
@@ -21,7 +24,8 @@ class ShopProductViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListMo
     required_caps = {
         "list": Cap.VIEW_PRODUCTS, "retrieve": Cap.VIEW_PRODUCTS, "by_barcode": Cap.VIEW_PRODUCTS,
         "movements": Cap.VIEW_PRODUCTS, "create": Cap.MANAGE_PRODUCTS,
-        "partial_update": Cap.MANAGE_PRODUCTS, "adjust_stock": Cap.MANAGE_PRODUCTS,
+        "partial_update": Cap.MANAGE_PRODUCTS, "adjust_stock": Cap.MANAGE_PRODUCTS, 
+        "expiry_alerts": Cap.VIEW_PRODUCTS,
     }
 
     def get_serializer_class(self):
@@ -38,10 +42,20 @@ class ShopProductViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListMo
             t = p["search"].strip()
             qs = qs.filter(Q(master_product__name__icontains=t) | Q(master_product__brand__name__icontains=t) |
                            Q(master_product__search_keywords__icontains=t) | Q(master_product__barcodes__code=t)).distinct()
+        
         if p.get("low_stock") == "true":
-            qs = qs.filter(low_stock_threshold__gt=0, stock_qty__lte=F("low_stock_threshold"))
+            qs = qs.filter(
+                Q(low_stock_threshold__gt=0, stock_qty__lte=F("low_stock_threshold"))
+                | Q(low_stock_threshold=0, stock_qty__lte=DEFAULT_LOW_STOCK_LEVEL)
+            )
+
         if p.get("enabled") in ("true", "false"):
             qs = qs.filter(is_enabled=(p["enabled"] == "true"))
+
+        if p.get("expiring") == "true":
+            limit = timezone.localdate() + timedelta(days=EXPIRY_ALERT_DAYS)
+            qs = qs.filter(stock_qty__gt=0, expiry_date__isnull=False, expiry_date__lte=limit).order_by("expiry_date")
+        
         return qs
 
     def create(self, request, *args, **kwargs):
@@ -90,3 +104,19 @@ class ShopProductViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListMo
     def movements(self, request, pk=None):
         sp = self.get_object()
         return Response(StockMovementSerializer(sp.movements.all()[:200], many=True).data)
+
+    
+    @action(detail=False, url_path="expiry-alerts")
+    def expiry_alerts(self, request):
+        today = timezone.localdate()
+        base = self.get_queryset().filter(stock_qty__gt=0, expiry_date__isnull=False).order_by("expiry_date")
+        expired = base.filter(expiry_date__lt=today)
+        soon = base.filter(expiry_date__gte=today, expiry_date__lte=today + timedelta(days=EXPIRY_ALERT_DAYS))
+        ctx = self.get_serializer_context()
+        return Response({
+            "alert_days": EXPIRY_ALERT_DAYS,
+            "expired_count": expired.count(),
+            "expiring_soon_count": soon.count(),
+            "expired": ShopProductSerializer(expired[:50], many=True, context=ctx).data,
+            "expiring_soon": ShopProductSerializer(soon[:50], many=True, context=ctx).data,
+        })
