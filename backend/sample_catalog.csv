@@ -1,0 +1,4 @@
+name,brand,category,pack_size,unit,barcode,mrp,tax_rate,description
+Atta,Sample Brand,Flour and grains,5,kg,8901063010130,,,Sample row - barcode is a test value
+Sunflower Oil,Sample Brand,Cooking oils,1,l,8901020304050,,,Sample row - barcode is a test value
+Loose Sugar,,Sugar and salt,1,kg,,,,Sold loose - no barcode

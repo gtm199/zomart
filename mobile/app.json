@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Kirana POS",
+    "slug": "kirana-pos",
+    "scheme": "kiranapos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      ["expo-camera", { "cameraPermission": "Allow Kirana POS to use the camera to scan product barcodes." }]
+    ],
+    "android": { "package": "com.example.kiranapos" }
+  }
+}

@@ -1,0 +1,20 @@
+from .base import *  # noqa
+
+DEBUG = False
+
+if SECRET_KEY == "dev-insecure-change-me":  # noqa: F405
+    raise RuntimeError("Set DJANGO_SECRET_KEY to a strong random value in production.")
+
+# Enable once HTTPS is terminated in front of the app (reverse proxy / load balancer).
+if env_bool("DJANGO_SECURE_SSL"):  # noqa: F405
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+
+CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")  # noqa: F405
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}

@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+db.sqlite3
+backend/media/
+backend/staticfiles/
+mobile/node_modules/
+mobile/.expo/

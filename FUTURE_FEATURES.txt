@@ -1,0 +1,134 @@
+FUTURE FEATURES  (not built yet - add these manually, in roughly this order)
+=============================================================================
+
+This first build covers the core loop end to end:
+  register shop -> browse central catalogue -> add products with own price/stock
+  -> scan or search -> bill (cash/UPI/credit) -> stock + customer ledger update
+  -> WhatsApp share link -> daily summary.
+
+Everything below was in the master prompt but is intentionally left out of this
+first build. Each item says what to add and where it plugs in.
+
+
+A. PURCHASING AND SUPPLIERS  (phase 5 of the master prompt)
+-----------------------------------------------------------
+1. Supplier model (shop-owned) + CRUD API   -> new app: apps/suppliers
+2. Purchase + PurchaseItem (invoice no., received qty, cost, partial delivery)
+   -> new app: apps/purchases. Goods receipt must call
+   services/inventory_service.apply_movement(movement_type="purchase") so stock
+   stays ledgered. Update ShopProduct.purchase_cost from the invoice.
+3. Supplier payments, supplier ledger, outstanding payables (mirror the
+   customer ledger in services/customer_service.py).
+4. Purchase returns.
+5. Batch and expiry tracking (StockBatch model; sell FEFO) + expiry alerts.
+6. Stock valuation report (sum stock_qty * purchase_cost per shop).
+
+B. ACCOUNTING AND REPORTS  (phase 6)
+------------------------------------
+1. Expense model + categories (rent, salary, electricity...) -> apps/expenses.
+2. Net profit = gross profit - expenses (currently only a gross-profit ESTIMATE
+   exists in services/report_service.py; it is NOT net profit).
+3. Date-range reports: sales by product/category, top sellers, slow movers,
+   cash vs UPI, receivables ageing, payables.
+4. Daily cash close / cash drawer reconciliation.
+5. Optional double-entry journal (AccountingEntry) - if added, enforce that
+   every posted entry balances (debits == credits) inside the same DB transaction.
+6. Export to CSV/XLSX/PDF.
+7. GST: verify current Indian GST rules with a CA before adding formal tax
+   invoices, HSN summaries or GSTR export. The current code only stores a tax
+   rate and treats prices as tax-inclusive; it is NOT a GST-compliant invoice.
+
+C. WHATSAPP  (phase 4, full version)
+------------------------------------
+Built now: a wa.me share link and receipt text (manual fallback).
+To add:
+1. Meta WhatsApp Business Platform / Cloud API account, business verification,
+   approved message templates, user opt-in/consent capture per customer.
+2. ReceiptDelivery model (sale, recipient, status, attempts, last_error, provider id).
+3. Celery + Redis worker to send after the sale commits (never inside the sale
+   transaction - a send failure must not undo a sale). Retry with backoff.
+4. Webhook endpoint for delivery statuses; manual "resend" button.
+5. Secure receipt links (signed, expiring URL) or PDF receipts.
+6. Per-plan monthly message limits (SubscriptionPlan.whatsapp_monthly_limit
+   already exists but is not enforced yet).
+7. Keep credentials only on the backend (env/secret manager), per shop if each
+   vendor brings their own number.
+
+D. OFFLINE-FIRST MOBILE  (phase 7)
+----------------------------------
+Built now: the app generates a client_txn_id per bill and the server is
+idempotent on it, so a retried request never double-bills.
+To add:
+1. expo-sqlite local DB: cache the shop's products (price/stock) and customers.
+2. Pending-sales queue persisted on the phone; sync worker with retry/backoff;
+   survive app restarts; show sync status.
+3. Conflict rules for concurrent offline sales (e.g. accept the sale, allow stock
+   to go negative, flag for reconciliation) - needs a product decision.
+4. Delta sync endpoints (updated_since) for catalogue and shop products.
+5. Queue WhatsApp sends while offline.
+
+E. CATALOGUE ADMINISTRATION
+---------------------------
+Built now: Django admin + /api/v1/platform/catalog/* APIs, change log, duplicate
+check, CSV import command (preview then --commit), suggestion review.
+To add:
+1. A proper admin web panel (React/Next.js or Django templates) instead of the
+   raw Django admin.
+2. Product image upload/approval workflow and image thumbnails/CDN.
+3. XLSX import and catalogue export; import preview screen in the UI.
+4. Barcode conflict review queue, multiple barcodes per pack variant UI.
+5. Approval workflow roles (editor vs approver), "pending_review" queue UI.
+6. Category/brand management UI, merge tools (explicit, never automatic).
+7. Per-product vendor-count and "missing image / unverified field" dashboards.
+8. Verified MRP/tax source tracking (who verified, when).
+9. Notify vendors when a product they stock is deactivated.
+
+F. PEOPLE, SHOPS, SUBSCRIPTIONS
+-------------------------------
+1. Multiple shops per vendor in the mobile app (backend already supports
+   several memberships; the app uses the first shop - add a shop switcher).
+2. Employee permission customisation beyond the five fixed roles.
+3. Vendor onboarding approval / KYC by platform admin.
+4. Subscription payments (Razorpay/UPI), invoices, renewals, upgrade/downgrade
+   flows, expiry reminders, usage dashboard. (Today the platform admin edits
+   subscriptions in Django admin; plans/limits are data, not code.)
+5. Platform analytics dashboard (active shops, bills/day, catalogue coverage).
+
+G. POS EXTRAS
+-------------
+1. Bill-level discounts, loyalty, price override with permission.
+2. Hold/resume bills, multiple carts.
+3. Loose items by weight (scale integration), unit conversion.
+4. Thermal printer / PDF receipt, reprint.
+5. Void/cancel sale with reason and approval; return of credit sales to
+   customer ledger is done, but no partial-payment-against-specific-invoice yet.
+6. Customer credit limits and reminders (WhatsApp/SMS).
+7. Customer-facing marketplace (separate module and separate customer identity;
+   must never read vendor-private customer data).
+
+H. SECURITY, OPERATIONS, QUALITY
+--------------------------------
+1. HTTPS reverse proxy (Caddy/nginx), secure cookies, HSTS (settings hooks exist:
+   DJANGO_SECURE_SSL).
+2. Token expiry/rotation (JWT or expiring tokens), password reset, OTP login.
+3. Audit log for financial actions (who changed price/stock/refund).
+4. Automated PostgreSQL backups + a TESTED restore drill.
+5. Sentry/log shipping, health-check endpoint, rate-limit tuning.
+6. CI pipeline (run `manage.py test`, ruff, mobile `tsc --noEmit`).
+7. Load test checkout concurrency on PostgreSQL.
+8. Mobile: Expo EAS builds, Play Store release, i18n (Hindi), accessibility.
+9. Migrations are not committed in this zip (see README step 2) - commit them.
+
+
+KNOWN SIMPLIFICATIONS IN THE CURRENT BUILD
+------------------------------------------
+- Stock is a running balance on ShopProduct changed only through
+  inventory_service (every change writes a StockMovement). There is no
+  separate batch/expiry layer yet.
+- Prices are treated as tax-inclusive; tax is split out for display/reports only.
+- Purchase cost is a single "latest cost" per product, not FIFO/average cost.
+- "Gross profit" is an estimate and ignores expenses.
+- Token auth does not expire until logout.
+- The mobile app has no offline queue yet; it needs internet for every action.
+- Subscription expiry makes a shop read-only after the grace period; it never
+  deletes data.

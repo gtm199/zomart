@@ -1,0 +1,301 @@
+name,brand,category,pack_size,unit,barcode,mrp,tax_rate,description
+Rice,India Gate,Rice & Grains,1,kg,DEMO0000000001,95,0,Basmati rice for everyday meals
+Classic Basmati Rice,India Gate,Rice & Grains,5,kg,DEMO0000000002,625,0,Long-grain basmati rice
+Rozana Basmati Rice,Daawat,Rice & Grains,1,kg,DEMO0000000003,110,0,Everyday basmati rice
+Super Basmati Rice,Daawat,Rice & Grains,5,kg,DEMO0000000004,575,0,Aromatic long-grain rice
+Sona Masoori Rice,Local Select,Rice & Grains,5,kg,DEMO0000000005,280,0,Light everyday rice
+Kolam Rice,Local Select,Rice & Grains,5,kg,DEMO0000000006,325,0,Medium-grain rice
+Gobindobhog Rice,Local Select,Rice & Grains,1,kg,DEMO0000000007,115,0,Short-grain aromatic rice
+Idli Rice,24 Mantra Organic,Rice & Grains,1,kg,DEMO0000000008,95,0,Rice suitable for idli batter
+Brown Rice,Daawat,Rice & Grains,1,kg,DEMO0000000009,125,0,Whole-grain brown rice
+Poha Rice Flakes,Madhur,Rice & Grains,500,g,DEMO0000000010,48,0,Flattened rice flakes
+Whole Wheat Atta,Aashirvaad,Flour & Atta,5,kg,DEMO0000000011,265,0,Whole wheat flour
+Shudh Chakki Atta,Fortune,Flour & Atta,5,kg,DEMO0000000012,245,0,Chakki-ground wheat flour
+Multigrain Atta,Pillsbury,Flour & Atta,5,kg,DEMO0000000013,330,0,Flour blended with multiple grains
+Maida,Fortune,Flour & Atta,1,kg,DEMO0000000014,48,0,Refined wheat flour
+Besan,Besan,Flour & Atta,1,kg,DEMO0000000015,105,0,Gram flour for cooking
+Sooji Rava,MTR,Flour & Atta,500,g,DEMO0000000016,42,0,Semolina for upma and sweets
+Dalia,Patanjali,Flour & Atta,500,g,DEMO0000000017,45,0,Broken wheat
+Jowar Flour,24 Mantra Organic,Flour & Atta,500,g,DEMO0000000018,75,0,Sorghum flour
+Bajra Flour,Local Select,Flour & Atta,1,kg,DEMO0000000019,65,0,Pearl millet flour
+Ragi Flour,Tata Sampann,Flour & Atta,500,g,DEMO0000000020,68,0,Finger millet flour
+Toor Dal,Tata Sampann,Pulses & Lentils,1,kg,DEMO0000000021,165,0,Split pigeon peas
+Moong Dal,Tata Sampann,Pulses & Lentils,1,kg,DEMO0000000022,145,0,Split mung beans
+Dhuli Urad Dal,Fortune,Pulses & Lentils,1,kg,DEMO0000000023,155,0,Split and skinned black gram
+Chana Dal,Tata Sampann,Pulses & Lentils,1,kg,DEMO0000000024,95,0,Split Bengal gram
+Masoor Dal,Tata Sampann,Pulses & Lentils,1,kg,DEMO0000000025,110,0,Red lentils
+Rajma Red,Tata Sampann,Pulses & Lentils,500,g,DEMO0000000026,95,0,Red kidney beans
+Kabuli Chana,Tata Sampann,Pulses & Lentils,1,kg,DEMO0000000027,125,0,White chickpeas
+Kala Chana,Fortune,Pulses & Lentils,1,kg,DEMO0000000028,95,0,Black chickpeas
+Lobia,Local Select,Pulses & Lentils,500,g,DEMO0000000029,65,0,Black-eyed peas
+Green Moong Whole,Tata Sampann,Pulses & Lentils,500,g,DEMO0000000030,70,0,Whole green mung beans
+Refined Sunflower Oil,Fortune,Edible Oils,1,l,DEMO0000000031,155,5,Refined sunflower cooking oil
+Kachi Ghani Mustard Oil,Fortune,Edible Oils,1,l,DEMO0000000032,175,5,Mustard oil for cooking
+Refined Soyabean Oil,Engine,Edible Oils,1,l,DEMO0000000033,145,5,Refined soybean oil
+Rice Bran Oil,Fortune,Edible Oils,1,l,DEMO0000000034,170,5,Rice bran cooking oil
+Groundnut Oil,Dhara,Edible Oils,1,l,DEMO0000000035,210,5,Groundnut cooking oil
+Coconut Oil,Parachute,Edible Oils,200,ml,DEMO0000000036,95,5,Coconut oil for food and hair use
+Olive Oil,Figaro,Edible Oils,250,ml,DEMO0000000037,330,5,Olive oil for cooking
+Ghee,Amul,Edible Oils & Ghee,500,ml,DEMO0000000038,330,5,Clarified butter
+Cow Ghee,Patanjali,Edible Oils & Ghee,500,ml,DEMO0000000039,315,5,Cow ghee
+Vanaspati,Dalda,Edible Oils & Ghee,1,l,DEMO0000000040,155,5,Vegetable fat for cooking
+Sulphurless Sugar,Madhur,Sugar & Salt,1,kg,DEMO0000000041,52,5,Refined sugar
+Icing Sugar,Weikfield,Sugar & Salt,500,g,DEMO0000000042,60,5,Fine powdered sugar
+Brown Sugar,Organic Tattva,Sugar & Salt,500,g,DEMO0000000043,85,5,Brown sugar
+Jaggery Powder,Patanjali,Sugar & Salt,500,g,DEMO0000000044,65,5,Powdered jaggery
+Jaggery Cubes,Local Select,Sugar & Salt,500,g,DEMO0000000045,55,5,Traditional jaggery cubes
+Iodised Salt,Tata Salt,Sugar & Salt,1,kg,DEMO0000000046,28,0,Iodised edible salt
+Rock Salt,Tata Sampann,Sugar & Salt,500,g,DEMO0000000047,45,5,Rock salt
+Black Salt,Catch,Sugar & Salt,200,g,DEMO0000000048,35,5,Black salt for seasoning
+Sendha Namak,Patanjali,Sugar & Salt,500,g,DEMO0000000049,50,5,Rock salt for cooking
+Liquid Glucose,Weikfield,Sugar & Salt,200,g,DEMO0000000050,65,18,Glucose syrup for baking
+Turmeric Powder,Everest,Spices,100,g,DEMO0000000051,35,5,Ground turmeric
+Red Chilli Powder,Everest,Spices,100,g,DEMO0000000052,48,5,Ground red chilli
+Coriander Powder,Catch,Spices,100,g,DEMO0000000053,32,5,Ground coriander
+Cumin Seeds,Tata Sampann,Spices,100,g,DEMO0000000054,58,5,Whole cumin seeds
+Cumin Powder,Everest,Spices,100,g,DEMO0000000055,55,5,Ground cumin
+Garam Masala,MDH,Spices,100,g,DEMO0000000056,78,5,Blended Indian spice mix
+Chole Masala,MDH,Spices,100,g,DEMO0000000057,68,5,Spice blend for chickpeas
+Pav Bhaji Masala,Everest,Spices,100,g,DEMO0000000058,62,5,Spice blend for pav bhaji
+Kitchen King Masala,MDH,Spices,100,g,DEMO0000000059,72,5,Mixed vegetable spice blend
+Sambar Powder,MTR,Spices,100,g,DEMO0000000060,55,5,South Indian sambar spice
+Black Pepper Whole,Catch,Whole Spices,50,g,DEMO0000000061,75,5,Whole black pepper
+Green Cardamom,Catch,Whole Spices,25,g,DEMO0000000062,115,5,Green cardamom pods
+Cloves,Catch,Whole Spices,25,g,DEMO0000000063,58,5,Dried cloves
+Cinnamon Sticks,Catch,Whole Spices,50,g,DEMO0000000064,52,5,Cinnamon bark
+Green Bay Leaves,Catch,Whole Spices,20,g,DEMO0000000065,25,5,Dried bay leaves
+Mustard Seeds,Tata Sampann,Whole Spices,100,g,DEMO0000000066,28,5,Mustard seeds
+Fenugreek Seeds,Tata Sampann,Whole Spices,100,g,DEMO0000000067,32,5,Fenugreek seeds
+Fennel Seeds,Catch,Whole Spices,100,g,DEMO0000000068,48,5,Fennel seeds
+Ajwain Seeds,Catch,Whole Spices,100,g,DEMO0000000069,42,5,Carom seeds
+Asafoetida Hing,Catch,Whole Spices,10,g,DEMO0000000070,55,5,Asafoetida seasoning
+Premium Tea,Tata Tea,Tea & Coffee,250,g,DEMO0000000071,145,5,Black tea leaves
+Red Label Tea,Brooke Bond,Tea & Coffee,250,g,DEMO0000000072,135,5,Everyday black tea
+Taj Mahal Tea,Brooke Bond,Tea & Coffee,250,g,DEMO0000000073,165,5,Premium black tea
+Green Tea,Tetley,Tea & Coffee,25,pc,DEMO0000000074,155,5,Green tea bags
+Masala Tea,Wagh Bakri,Tea & Coffee,250,g,DEMO0000000075,150,5,Spiced black tea
+Instant Coffee,Nescafe,Tea & Coffee,50,g,DEMO0000000076,190,18,Instant coffee
+Classic Coffee,Bru,Tea & Coffee,50,g,DEMO0000000077,145,18,Instant coffee
+Filter Coffee Powder,Cothas,Tea & Coffee,200,g,DEMO0000000078,165,5,South Indian filter coffee blend
+Cocoa Powder,Hershey's,Tea & Coffee,100,g,DEMO0000000079,125,18,Cocoa powder for drinks and baking
+Premix Masala Chai,Wagh Bakri,Tea & Coffee,10,pc,DEMO0000000080,110,18,Instant masala chai mix
+Toned Milk,Amul,Dairy,500,ml,DEMO0000000081,30,0,Pasteurised toned milk
+Full Cream Milk,Mother Dairy,Dairy,500,ml,DEMO0000000082,35,0,Pasteurised full cream milk
+UHT Milk,Amul,Dairy,1,l,DEMO0000000083,72,0,Long-life milk
+Plain Curd,Amul,Dairy,400,g,DEMO0000000084,35,0,Set curd
+Greek Yogurt,Epigamia,Dairy,1,pc,DEMO0000000085,55,5,Thick strained yogurt
+Paneer,Amul,Dairy,200,g,DEMO0000000086,90,5,Fresh cottage cheese
+Butter,Amul,Dairy,100,g,DEMO0000000087,60,12,Salted butter
+Cheese Slices,Amul,Dairy,200,g,DEMO0000000088,145,12,Processed cheese slices
+Cheese Spread,Britannia,Dairy,180,g,DEMO0000000089,105,12,Cheese spread
+Buttermilk,Mother Dairy,Dairy,200,ml,DEMO0000000090,15,5,Spiced buttermilk drink
+Corn Flakes,Kellogg's,Breakfast Cereals,250,g,DEMO0000000091,130,18,Toasted corn flakes
+Chocos,Kellogg's,Breakfast Cereals,250,g,DEMO0000000092,145,18,Chocolate breakfast cereal
+Oats,Quaker,Breakfast Cereals,400,g,DEMO0000000093,115,5,Rolled oats
+Masala Oats,Saffola,Breakfast Cereals,500,g,DEMO0000000094,190,18,Instant savoury oats
+Muesli Fruit & Nut,Bagrry's,Breakfast Cereals,400,g,DEMO0000000095,285,18,Muesli with fruit and nuts
+Poha,MTR,Breakfast Cereals,500,g,DEMO0000000096,58,5,Flattened rice
+Vermicelli,Bambino,Breakfast Cereals,400,g,DEMO0000000097,55,5,Wheat vermicelli
+Instant Upma Mix,MTR,Breakfast Cereals,200,g,DEMO0000000098,65,12,Instant upma mix
+Porridge Mix,Slurrp Farm,Breakfast Cereals,200,g,DEMO0000000099,145,18,Ready-to-cook porridge mix
+Puffed Rice,Local Select,Breakfast Cereals,200,g,DEMO0000000100,30,5,Puffed rice
+Parle-G Biscuits,Parle,Biscuits & Cookies,250,g,DEMO0000000101,30,18,Glucose biscuits
+Monaco Biscuits,Parle,Biscuits & Cookies,200,g,DEMO0000000102,35,18,Salted crackers
+Good Day Butter Cookies,Britannia,Biscuits & Cookies,200,g,DEMO0000000103,40,18,Butter cookies
+Marie Gold,Britannia,Biscuits & Cookies,250,g,DEMO0000000104,40,18,Marie tea biscuits
+Dark Fantasy,Sunfeast,Biscuits & Cookies,300,g,DEMO0000000105,110,18,Chocolate-filled cookies
+Hide & Seek,Parle,Biscuits & Cookies,200,g,DEMO0000000106,40,18,Chocolate-chip cookies
+Bourbon Biscuits,Britannia,Biscuits & Cookies,150,g,DEMO0000000107,30,18,Chocolate cream biscuits
+Digestive Biscuits,McVitie's,Biscuits & Cookies,250,g,DEMO0000000108,95,18,Wheat digestive biscuits
+Jim Jam Biscuits,Sunfeast,Biscuits & Cookies,150,g,DEMO0000000109,30,18,Jam-centred cream biscuits
+Cream Biscuits,Sunfeast,Biscuits & Cookies,120,g,DEMO0000000110,20,18,Vanilla cream biscuits
+Aloo Bhujia,Haldiram's,Snacks,200,g,DEMO0000000111,55,12,Spicy potato and gram-flour snack
+Moong Dal Snack,Haldiram's,Snacks,200,g,DEMO0000000112,55,12,Crispy fried moong dal
+Khatta Meetha,Haldiram's,Snacks,200,g,DEMO0000000113,55,12,Sweet and tangy namkeen
+Bhujia Sev,Bikaji,Snacks,200,g,DEMO0000000114,55,12,Crispy gram-flour sev
+Masala Peanuts,Haldiram's,Snacks,200,g,DEMO0000000115,60,12,Spiced crunchy peanuts
+Banana Chips,Beyond Snack,Snacks,75,g,DEMO0000000116,50,12,Crispy banana chips
+Potato Chips Classic,Lay's,Snacks,52,g,DEMO0000000117,20,12,Classic salted potato chips
+Kurkure Masala Munch,Kurkure,Snacks,90,g,DEMO0000000118,20,12,Spicy corn-based snack
+Nachos Cheese,Doritos,Snacks,60,g,DEMO0000000119,30,12,Cheese-flavoured tortilla chips
+Roasted Chana,Local Select,Snacks,200,g,DEMO0000000120,45,5,Roasted gram snack
+Masala Noodles,Maggi,Noodles & Pasta,70,g,DEMO0000000121,14,12,Instant masala noodles
+Atta Noodles,Maggi,Noodles & Pasta,290,g,DEMO0000000122,75,12,Instant noodles made with atta
+Yippee Magic Masala,Sunfeast,Noodles & Pasta,70,g,DEMO0000000123,14,12,Instant masala noodles
+Hakka Noodles,Ching's Secret,Noodles & Pasta,150,g,DEMO0000000124,35,12,Noodles for Indo-Chinese dishes
+Macaroni,Bambino,Noodles & Pasta,400,g,DEMO0000000125,65,12,Durum wheat macaroni
+Penne Pasta,Weikfield,Noodles & Pasta,400,g,DEMO0000000126,95,12,Penne pasta
+Fusilli Pasta,Del Monte,Noodles & Pasta,400,g,DEMO0000000127,110,12,Spiral pasta
+Spaghetti,Del Monte,Noodles & Pasta,500,g,DEMO0000000128,125,12,Spaghetti pasta
+Vermicelli Pasta,Bambino,Noodles & Pasta,400,g,DEMO0000000129,58,12,Roasted vermicelli
+Cup Noodles,Maggi,Noodles & Pasta,70,g,DEMO0000000130,50,12,Instant noodles in a cup
+Mango Pickle,Mother's Recipe,Pickles & Chutneys,400,g,DEMO0000000131,95,12,Traditional mango pickle
+Mixed Pickle,Priya,Pickles & Chutneys,300,g,DEMO0000000132,85,12,Mixed vegetable pickle
+Lime Pickle,Mother's Recipe,Pickles & Chutneys,400,g,DEMO0000000133,90,12,Lime pickle
+Green Chilli Pickle,Priya,Pickles & Chutneys,300,g,DEMO0000000134,85,12,Green chilli pickle
+Garlic Pickle,Mother's Recipe,Pickles & Chutneys,300,g,DEMO0000000135,110,12,Garlic pickle
+Tomato Chutney,MTR,Pickles & Chutneys,200,g,DEMO0000000136,75,12,Ready-to-eat tomato chutney
+Coconut Chutney Powder,MTR,Pickles & Chutneys,100,g,DEMO0000000137,65,12,Dry coconut chutney mix
+Pani Puri Chutney,Ching's Secret,Pickles & Chutneys,200,g,DEMO0000000138,65,12,Tamarind and spice chutney
+Imli Chutney,Mother's Recipe,Pickles & Chutneys,200,g,DEMO0000000139,60,12,Sweet tamarind chutney
+Ginger Pickle,Priya,Pickles & Chutneys,300,g,DEMO0000000140,90,12,Ginger pickle
+Tomato Ketchup,Kissan,Sauces & Condiments,500,g,DEMO0000000141,115,12,Tomato ketchup
+Tomato Ketchup,Maggi,Sauces & Condiments,500,g,DEMO0000000142,125,12,Tomato ketchup
+Green Chilli Sauce,Ching's Secret,Sauces & Condiments,200,g,DEMO0000000143,55,12,Green chilli sauce
+Red Chilli Sauce,Ching's Secret,Sauces & Condiments,200,g,DEMO0000000144,55,12,Red chilli sauce
+Soy Sauce,Ching's Secret,Sauces & Condiments,200,ml,DEMO0000000145,60,12,Soy sauce
+Vinegar,Weikfield,Sauces & Condiments,500,ml,DEMO0000000146,55,12,Synthetic vinegar for cooking
+Mayonnaise,FunFoods,Sauces & Condiments,250,g,DEMO0000000147,95,12,Creamy mayonnaise
+Sandwich Spread,FunFoods,Sauces & Condiments,250,g,DEMO0000000148,105,12,Vegetable sandwich spread
+Mustard Sauce,Veeba,Sauces & Condiments,300,g,DEMO0000000149,110,12,Mustard condiment
+Pizza Pasta Sauce,Del Monte,Sauces & Condiments,1,pc,DEMO0000000150,135,12,Tomato-based pizza and pasta sauce
+Mixed Fruit Jam,Kissan,Jams & Spreads,500,g,DEMO0000000151,150,12,Mixed fruit jam
+Strawberry Jam,Mapro,Jams & Spreads,250,g,DEMO0000000152,125,12,Strawberry fruit spread
+Mango Jam,Kissan,Jams & Spreads,200,g,DEMO0000000153,65,12,Mango jam
+Honey,Dabur,Jams & Spreads,250,g,DEMO0000000154,145,5,Honey
+Honey,Patanjali,Jams & Spreads,500,g,DEMO0000000155,225,5,Honey
+Peanut Butter Creamy,Pintola,Jams & Spreads,350,g,DEMO0000000156,190,12,Creamy peanut butter
+Peanut Butter Crunchy,MyFitness,Jams & Spreads,340,g,DEMO0000000157,210,12,Crunchy peanut butter
+Chocolate Spread,Hershey's,Jams & Spreads,350,g,DEMO0000000158,225,18,Chocolate hazelnut-style spread
+Marmalade,Kissan,Jams & Spreads,200,g,DEMO0000000159,95,12,Citrus marmalade
+Date Syrup,Urban Platter,Jams & Spreads,250,g,DEMO0000000160,240,12,Date-based syrup
+Almonds,Happilo,Dry Fruits & Nuts,200,g,DEMO0000000161,260,5,Whole almonds
+Cashews,Happilo,Dry Fruits & Nuts,200,g,DEMO0000000162,285,5,Whole cashew nuts
+Pistachios,Happilo,Dry Fruits & Nuts,100,g,DEMO0000000163,165,5,Pistachio kernels
+Raisins,Lion,Dry Fruits & Nuts,200,g,DEMO0000000164,95,5,Dried raisins
+Dates,Lion,Dry Fruits & Nuts,500,g,DEMO0000000165,145,5,Dried dates
+Walnuts,Happilo,Dry Fruits & Nuts,100,g,DEMO0000000166,190,5,Walnut kernels
+Dried Figs,Happilo,Dry Fruits & Nuts,200,g,DEMO0000000167,260,5,Dried figs
+Dried Apricots,Happilo,Dry Fruits & Nuts,200,g,DEMO0000000168,245,5,Dried apricots
+Trail Mix,True Elements,Dry Fruits & Nuts,200,g,DEMO0000000169,225,12,Mixed nuts and dried fruit
+Roasted Pumpkin Seeds,Farmley,Dry Fruits & Nuts,100,g,DEMO0000000170,115,12,Roasted pumpkin seeds
+Cola Soft Drink,Coca-Cola,Beverages,750,ml,DEMO0000000171,45,28,Carbonated cola drink
+Lemon-Lime Soft Drink,Sprite,Beverages,750,ml,DEMO0000000172,45,28,Lemon-lime carbonated drink
+Orange Drink,Fanta,Beverages,750,ml,DEMO0000000173,45,28,Orange-flavoured soft drink
+Mango Drink,Maaza,Beverages,600,ml,DEMO0000000174,40,12,Mango fruit drink
+Mango Drink,Slice,Beverages,600,ml,DEMO0000000175,40,12,Mango fruit drink
+Packaged Water,Bisleri,Beverages,1,l,DEMO0000000176,20,18,Packaged drinking water
+Soda Water,Kinley,Beverages,750,ml,DEMO0000000177,20,28,Carbonated soda water
+Electrolyte Drink,ORS,Beverages,200,ml,DEMO0000000178,20,12,Electrolyte beverage; verify classification
+Coconut Water,Raw Pressery,Beverages,200,ml,DEMO0000000179,60,12,Packaged coconut water
+Fruit Juice Orange,Real,Beverages,1,l,DEMO0000000180,125,12,Packaged orange juice
+Idli Mix,MTR,Ready Mixes,500,g,DEMO0000000181,115,12,Instant idli mix
+Dosa Mix,MTR,Ready Mixes,500,g,DEMO0000000182,125,12,Instant dosa mix
+Gulab Jamun Mix,Gits,Ready Mixes,200,g,DEMO0000000183,95,12,Dessert mix for gulab jamun
+Dhokla Mix,Gits,Ready Mixes,200,g,DEMO0000000184,75,12,Instant dhokla mix
+Khaman Mix,Talod,Ready Mixes,200,g,DEMO0000000185,70,12,Instant khaman mix
+Rava Idli Mix,MTR,Ready Mixes,500,g,DEMO0000000186,130,12,Instant rava idli mix
+Falooda Mix,Weikfield,Ready Mixes,200,g,DEMO0000000187,95,18,Falooda dessert mix
+Kheer Mix,Gits,Ready Mixes,100,g,DEMO0000000188,55,12,Instant kheer mix
+Pancake Mix,Bagrry's,Ready Mixes,500,g,DEMO0000000189,225,18,Pancake mix
+Cake Mix Chocolate,Betty Crocker,Ready Mixes,500,g,DEMO0000000190,250,18,Chocolate cake mix
+Baking Powder,Weikfield,Baking Supplies,100,g,DEMO0000000191,45,18,Baking powder
+Baking Soda,Weikfield,Baking Supplies,100,g,DEMO0000000192,25,18,Sodium bicarbonate for baking
+Corn Flour,Weikfield,Baking Supplies,100,g,DEMO0000000193,35,18,Corn starch for thickening
+Custard Powder Vanilla,Weikfield,Baking Supplies,100,g,DEMO0000000194,45,18,Vanilla custard powder
+Vanilla Essence,Weikfield,Baking Supplies,20,ml,DEMO0000000195,35,18,Vanilla flavouring essence
+Dry Yeast,Angel,Baking Supplies,10,g,DEMO0000000196,25,18,Active dry yeast
+Chocolate Chips,Morde,Baking Supplies,100,g,DEMO0000000197,85,18,Chocolate chips for baking
+Cocoa Baking Bar,Morde,Baking Supplies,100,g,DEMO0000000198,95,18,Compound chocolate for baking
+Desiccated Coconut,Urban Platter,Baking Supplies,100,g,DEMO0000000199,65,5,Dried shredded coconut
+Gelatin Powder,Urban Platter,Baking Supplies,50,g,DEMO0000000200,90,18,Gelatin powder for desserts
+Bath Soap,Dove,Personal & Home Care,100,g,DEMO0000000201,65,18,Moisturising bath soap
+Bath Soap,Lux,Personal & Home Care,100,g,DEMO0000000202,35,18,Bath soap
+Bath Soap,Lifebuoy,Personal & Home Care,100,g,DEMO0000000203,32,18,Bath soap
+Shampoo,Clinic Plus,Personal & Home Care,175,ml,DEMO0000000204,95,18,Everyday shampoo
+Shampoo,Head & Shoulders,Personal & Home Care,180,ml,DEMO0000000205,210,18,Anti-dandruff shampoo
+Toothpaste,Colgate,Personal & Home Care,150,g,DEMO0000000206,110,18,Fluoride toothpaste
+Toothpaste,Dabur Red,Personal & Home Care,150,g,DEMO0000000207,95,18,Herbal toothpaste
+Toothbrush,Oral-B,Personal & Home Care,1,pc,DEMO0000000208,35,18,Manual toothbrush
+Dishwash Bar,Vim,Personal & Home Care,200,g,DEMO0000000209,25,18,Dishwashing bar
+Dishwash Liquid,Vim,Personal & Home Care,500,ml,DEMO0000000210,125,18,Dishwashing liquid
+Detergent Powder,Surf Excel,Laundry & Cleaning,1,kg,DEMO0000000211,220,18,Laundry detergent powder
+Detergent Powder,Tide,Laundry & Cleaning,1,kg,DEMO0000000212,155,18,Laundry detergent powder
+Detergent Powder,Wheel,Laundry & Cleaning,1,kg,DEMO0000000213,95,18,Laundry detergent powder
+Detergent Bar,Rin,Laundry & Cleaning,250,g,DEMO0000000214,30,18,Laundry detergent bar
+Fabric Conditioner,Comfort,Laundry & Cleaning,860,ml,DEMO0000000215,220,18,Fabric conditioner
+Floor Cleaner,Lizol,Laundry & Cleaning,500,ml,DEMO0000000216,115,18,Floor cleaning liquid
+Toilet Cleaner,Harpic,Laundry & Cleaning,500,ml,DEMO0000000217,105,18,Toilet cleaning liquid
+Glass Cleaner,Colin,Laundry & Cleaning,500,ml,DEMO0000000218,115,18,Glass cleaning spray
+Garbage Bags,Gala,Laundry & Cleaning,30,pc,DEMO0000000219,120,18,Household garbage bags
+Scrub Pad,Scotch-Brite,Laundry & Cleaning,3,pc,DEMO0000000220,45,18,Kitchen scrub pads
+Punjabi Masala Papad,Lijjat,Papad & Fryums,200,g,DEMO0000000221,55,5,Spiced papad for roasting or frying
+Urad Papad,Lijjat,Papad & Fryums,200,g,DEMO0000000222,60,5,Urad dal papad
+Moong Papad,Lijjat,Papad & Fryums,200,g,DEMO0000000223,65,5,Moong dal papad
+Potato Fryums,Bikaji,Papad & Fryums,200,g,DEMO0000000224,45,12,Ready-to-fry potato fryums
+Rice Papad,Local Select,Papad & Fryums,200,g,DEMO0000000225,50,5,Rice-based papad
+Sabudana Papad,Local Select,Papad & Fryums,200,g,DEMO0000000226,60,5,Sago papad
+Masala Khakhra,Gujarati Snacks,Papad & Fryums,200,g,DEMO0000000227,75,12,Crisp spiced khakhra
+Plain Khakhra,Gujarati Snacks,Papad & Fryums,200,g,DEMO0000000228,70,12,Plain roasted khakhra
+Mathri,Haldiram's,Papad & Fryums,200,g,DEMO0000000229,60,12,Crisp savoury snack
+Fryums Rings,Bikaji,Papad & Fryums,150,g,DEMO0000000230,35,12,Ring-shaped fryums
+Makki Atta,Patanjali,Regional & Specialty,1,kg,DEMO0000000231,75,0,Maize flour
+Sattu,Patanjali,Regional & Specialty,500,g,DEMO0000000232,75,5,Roasted gram flour
+Makhana,Farmley,Regional & Specialty,100,g,DEMO0000000233,125,5,Fox nuts
+Sabudana,Tata Sampann,Regional & Specialty,500,g,DEMO0000000234,65,5,Sago pearls
+Tapioca Pearls,Local Select,Regional & Specialty,500,g,DEMO0000000235,70,5,Tapioca pearls
+Puffed Jowar,True Elements,Regional & Specialty,100,g,DEMO0000000236,65,5,Puffed sorghum snack
+Millet Mix,24 Mantra Organic,Regional & Specialty,500,g,DEMO0000000237,120,5,Mixed millet grains
+Organic Quinoa,Organic Tattva,Regional & Specialty,500,g,DEMO0000000238,245,5,Quinoa grains
+Amaranth Seeds,Tata Sampann,Regional & Specialty,200,g,DEMO0000000239,85,5,Amaranth grains
+Flax Seeds,True Elements,Regional & Specialty,200,g,DEMO0000000240,95,5,Flax seeds
+Frozen Green Peas,Safal,Frozen & Convenience,500,g,DEMO0000000241,95,5,Frozen green peas
+Frozen Sweet Corn,Safal,Frozen & Convenience,500,g,DEMO0000000242,110,5,Frozen sweet corn
+Frozen French Fries,McCain,Frozen & Convenience,420,g,DEMO0000000243,145,12,Frozen potato fries
+Frozen Aloo Tikki,McCain,Frozen & Convenience,400,g,DEMO0000000244,140,12,Frozen potato patties
+Frozen Veg Nuggets,ITC Master Chef,Frozen & Convenience,400,g,DEMO0000000245,180,12,Frozen vegetable nuggets
+Instant Soup Tomato,Knorr,Frozen & Convenience,40,g,DEMO0000000246,55,18,Instant tomato soup mix
+Instant Soup Sweet Corn,Knorr,Frozen & Convenience,40,g,DEMO0000000247,55,18,Instant sweet corn soup mix
+Ready-to-Eat Rajma,Haldiram's,Frozen & Convenience,300,g,DEMO0000000248,110,12,Ready-to-eat rajma curry
+Ready-to-Eat Dal Makhani,MTR,Frozen & Convenience,300,g,DEMO0000000249,115,12,Ready-to-eat dal makhani
+Ready-to-Eat Poha,Gits,Frozen & Convenience,80,g,DEMO0000000250,45,12,Instant poha meal
+Papad Khichiya,Local Select,Regional & Specialty,200,g,DEMO0000000251,55,5,Thin crisp rice papad
+Schezwan Chutney,Ching's Secret,Sauces & Condiments,250,g,DEMO0000000252,95,12,Spicy Indo-Chinese chutney
+Pasta Seasoning,Keya,Spices,50,g,DEMO0000000253,85,12,Herb seasoning for pasta
+Mixed Herbs,Keya,Spices,20,g,DEMO0000000254,65,12,Dried mixed herbs
+Chilli Flakes,Keya,Spices,30,g,DEMO0000000255,65,12,Crushed red chilli flakes
+Oregano,Keya,Spices,15,g,DEMO0000000256,55,12,Dried oregano
+Kasuri Methi,Everest,Spices,25,g,DEMO0000000257,35,5,Dried fenugreek leaves
+Pulao Masala,Everest,Spices,50,g,DEMO0000000258,45,5,Spice blend for pulao
+Biryani Masala,Everest,Spices,50,g,DEMO0000000259,48,5,Spice blend for biryani
+Pav Bhaji Paste,Mother's Recipe,Sauces & Condiments,200,g,DEMO0000000260,75,12,Ready-to-use pav bhaji paste
+White Vinegar,Ching's Secret,Sauces & Condiments,500,ml,DEMO0000000261,55,12,White vinegar
+Coconut Milk,Urban Platter,Canned & Packaged Foods,400,ml,DEMO0000000262,145,12,Coconut milk for curries
+Baked Beans,Wingreens,Canned & Packaged Foods,400,g,DEMO0000000263,110,12,Baked beans in tomato sauce
+Sweet Corn Tin,Del Monte,Canned & Packaged Foods,400,g,DEMO0000000264,95,12,Canned sweet corn kernels
+Olives Green,Del Monte,Canned & Packaged Foods,350,g,DEMO0000000265,175,12,Green olives in brine
+Jalapeno Slices,Del Monte,Canned & Packaged Foods,350,g,DEMO0000000266,165,12,Sliced jalapeno peppers
+Chickpeas Canned,Del Monte,Canned & Packaged Foods,400,g,DEMO0000000267,105,12,Ready-to-use canned chickpeas
+Tuna Substitute Soy Chunks,Nutrela,Canned & Packaged Foods,200,g,DEMO0000000268,55,5,Textured soy protein chunks
+Soya Chunks,Nutrela,Canned & Packaged Foods,200,g,DEMO0000000269,55,5,Textured soy protein
+Instant Coffee Sachets,Nescafe,Tea & Coffee,10,pc,DEMO0000000270,100,18,Single-serve instant coffee sachets
+Rice - 2kg,India Gate,Rice & Grains,2,kg,DEMO0000000271,190,0,Basmati rice for everyday meals; alternate pack size
+Classic Basmati Rice - 2kg,India Gate,Rice & Grains,2,kg,DEMO0000000272,1250,0,Long-grain basmati rice; alternate pack size
+Rozana Basmati Rice - 2kg,Daawat,Rice & Grains,2,kg,DEMO0000000273,220,0,Everyday basmati rice; alternate pack size
+Super Basmati Rice - 2kg,Daawat,Rice & Grains,2,kg,DEMO0000000274,1150,0,Aromatic long-grain rice; alternate pack size
+Sona Masoori Rice - 2kg,Local Select,Rice & Grains,2,kg,DEMO0000000275,560,0,Light everyday rice; alternate pack size
+Kolam Rice - 2kg,Local Select,Rice & Grains,2,kg,DEMO0000000276,650,0,Medium-grain rice; alternate pack size
+Gobindobhog Rice - 2kg,Local Select,Rice & Grains,2,kg,DEMO0000000277,230,0,Short-grain aromatic rice; alternate pack size
+Idli Rice - 2kg,24 Mantra Organic,Rice & Grains,2,kg,DEMO0000000278,190,0,Rice suitable for idli batter; alternate pack size
+Brown Rice - 2kg,Daawat,Rice & Grains,2,kg,DEMO0000000279,250,0,Whole-grain brown rice; alternate pack size
+Poha Rice Flakes - 2kg,Madhur,Rice & Grains,2,kg,DEMO0000000280,96,0,Flattened rice flakes; alternate pack size
+Whole Wheat Atta - 2kg,Aashirvaad,Flour & Atta,2,kg,DEMO0000000281,530,0,Whole wheat flour; alternate pack size
+Shudh Chakki Atta - 2kg,Fortune,Flour & Atta,2,kg,DEMO0000000282,490,0,Chakki-ground wheat flour; alternate pack size
+Multigrain Atta - 2kg,Pillsbury,Flour & Atta,2,kg,DEMO0000000283,660,0,Flour blended with multiple grains; alternate pack size
+Maida - 2kg,Fortune,Flour & Atta,2,kg,DEMO0000000284,96,0,Refined wheat flour; alternate pack size
+Besan - 2kg,Besan,Flour & Atta,2,kg,DEMO0000000285,210,0,Gram flour for cooking; alternate pack size
+Sooji Rava - 2kg,MTR,Flour & Atta,2,kg,DEMO0000000286,84,0,Semolina for upma and sweets; alternate pack size
+Dalia - 2kg,Patanjali,Flour & Atta,2,kg,DEMO0000000287,90,0,Broken wheat; alternate pack size
+Jowar Flour - 2kg,24 Mantra Organic,Flour & Atta,2,kg,DEMO0000000288,150,0,Sorghum flour; alternate pack size
+Bajra Flour - 2kg,Local Select,Flour & Atta,2,kg,DEMO0000000289,130,0,Pearl millet flour; alternate pack size
+Ragi Flour - 2kg,Tata Sampann,Flour & Atta,2,kg,DEMO0000000290,136,0,Finger millet flour; alternate pack size
+Toor Dal - 2kg,Tata Sampann,Pulses & Lentils,2,kg,DEMO0000000291,330,0,Split pigeon peas; alternate pack size
+Moong Dal - 2kg,Tata Sampann,Pulses & Lentils,2,kg,DEMO0000000292,290,0,Split mung beans; alternate pack size
+Dhuli Urad Dal - 2kg,Fortune,Pulses & Lentils,2,kg,DEMO0000000293,310,0,Split and skinned black gram; alternate pack size
+Chana Dal - 2kg,Tata Sampann,Pulses & Lentils,2,kg,DEMO0000000294,190,0,Split Bengal gram; alternate pack size
+Masoor Dal - 2kg,Tata Sampann,Pulses & Lentils,2,kg,DEMO0000000295,220,0,Red lentils; alternate pack size
+Rajma Red - 2kg,Tata Sampann,Pulses & Lentils,2,kg,DEMO0000000296,190,0,Red kidney beans; alternate pack size
+Kabuli Chana - 2kg,Tata Sampann,Pulses & Lentils,2,kg,DEMO0000000297,250,0,White chickpeas; alternate pack size
+Kala Chana - 2kg,Fortune,Pulses & Lentils,2,kg,DEMO0000000298,190,0,Black chickpeas; alternate pack size
+Lobia - 2kg,Local Select,Pulses & Lentils,2,kg,DEMO0000000299,130,0,Black-eyed peas; alternate pack size
+Green Moong Whole - 2kg,Tata Sampann,Pulses & Lentils,2,kg,DEMO0000000300,140,0,Whole green mung beans; alternate pack size
