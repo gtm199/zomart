@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { FlatList, Switch, Text, View } from "react-native";
 import { Button, Card, Err, Input, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
@@ -22,7 +23,13 @@ export default function Stock() {
       setErr(e.message);
     }
   }, [q, lowOnly]);
-  useEffect(() => { load(); }, [load]);
+
+  // Reload every time this screen comes into view (e.g. after saving a purchase)
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const startEdit = (sp: ShopProduct) => {
     setOpen(sp.id);

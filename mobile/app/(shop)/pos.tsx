@@ -137,6 +137,12 @@ export default function Pos() {
           <Card>
             <Text style={{ fontSize: 20, fontWeight: "700" }}>Total ₹{total.toFixed(2)}</Text>
             <Input placeholder={`Amount received (blank = ₹${total.toFixed(2)})`} keyboardType="decimal-pad" value={paid} onChangeText={setPaid} />
+            <Muted>
+              {paid !== "" && Number(paid) < total
+                ? `₹${(total - Number(paid)).toFixed(2)} will be added to the customer's dues. Select a customer below.`
+                : "Paid in full."}
+            </Muted>
+            <Button title="Sell fully on credit" kind="ghost" onPress={() => setPaid("0")} />
             <View style={{ flexDirection: "row", gap: 8 }}>
               <Button title="Cash" kind={method === "cash" ? "primary" : "ghost"} onPress={() => setMethod("cash")} />
               <Button title="UPI" kind={method === "upi" ? "primary" : "ghost"} onPress={() => setMethod("upi")} />
