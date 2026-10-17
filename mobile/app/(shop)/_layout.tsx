@@ -47,6 +47,7 @@ export default function ShopTabs() {
       <Tabs.Screen name="reports" options={hidden("Reports")} />
       <Tabs.Screen name="cashclose" options={hidden("Cash close")} />
       <Tabs.Screen name="today" options={hidden("Today")} />
+      <Tabs.Screen name="customerbills" options={{ href: null, title: "Customer bills" }} />
     </Tabs>
   );
 }

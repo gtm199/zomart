@@ -1,4 +1,4 @@
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, Switch, Text, View } from "react-native";
 import { Button, Card, Err, Input, Muted, Screen, colors } from "../../components/ui";
@@ -6,6 +6,7 @@ import { api } from "../../services/api";
 import { Customer, Page } from "../../types";
 
 export default function Customers() {
+  const router = useRouter();
   const [q, setQ] = useState("");
   const [owingOnly, setOwingOnly] = useState(false);
   const [items, setItems] = useState<Customer[]>([]);
@@ -89,6 +90,11 @@ export default function Customers() {
               <Text style={{ color: owes ? colors.danger : colors.muted, fontWeight: owes ? "700" : "400" }}>
                 {owes ? `Owes ₹${c.balance}` : "Nothing owed"}
               </Text>
+              <Button
+                title="View bills"
+                kind="ghost"
+                onPress={() => router.push({ pathname: "/(shop)/customerbills", params: { id: String(c.id), name: c.name } })}
+              />
               {owes &&
                 (open === c.id ? (
                   <>

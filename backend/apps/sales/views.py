@@ -25,7 +25,10 @@ class SaleViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModelMixi
 
     def get_queryset(self):
         qs = super().get_queryset()
-        day = self.request.query_params.get("date")
+        p = self.request.query_params
+        if p.get("customer", "").isdigit():
+            qs = qs.filter(customer_id=p["customer"])
+        day = p.get("date")
         if day:
             try:
                 qs = qs.filter(created_at__date=date.fromisoformat(day))

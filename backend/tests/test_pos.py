@@ -109,6 +109,13 @@ class CheckoutTests(APITestCase):
         self.assertEqual(Decimal(s["sales_total"]), Decimal("105.00"))
         self.assertEqual(Decimal(s["gross_profit_estimate"]), Decimal("40.00"))  # (105-5 tax) - 60 cost
 
+    def test_bills_can_be_listed_per_customer(self):
+        cust = self.c.post(f"{API}/shop/customers/", {"name": "Sunita", "phone": "9000000011"}, format="json").data["id"]
+        checkout(self.c, self.sp_id, qty="1", payments=[{"method": "cash", "amount": "105.00"}], customer=cust)
+        checkout(self.c, self.sp_id, qty="1", payments=[{"method": "cash", "amount": "105.00"}])  # walk-in bill
+        self.assertEqual(self.c.get(f"{API}/shop/sales/?customer={cust}").data["count"], 1)
+        other, shop_b = make_vendor("other_v", "Other Shop")
+        self.assertEqual(client_for(other, shop_b).get(f"{API}/shop/sales/?customer={cust}").data["count"], 0)
 
 class StockAndBarcodeTests(APITestCase):
     def setUp(self):
