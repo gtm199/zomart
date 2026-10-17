@@ -23,6 +23,7 @@ export default function Pos() {
   const [custs, setCusts] = useState<Customer[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [err, setErr] = useState("");
+  const [waPhone, setWaPhone] = useState("");
   const lastScan = useRef(0);
   const txnId = useRef(Crypto.randomUUID()); // reused on retry => the server never double-bills
 
@@ -77,8 +78,8 @@ export default function Pos() {
           payments: paidAmount > 0 ? [{ method, amount: paidAmount.toFixed(2) }] : [],
         },
       });
-      const rec = await api<{ whatsapp_url: string }>(`/shop/sales/${sale.id}/receipt/`);
-      setCart([]); setPaid(""); setCustomer(null); setCustQuery(""); setCusts([]);
+      const rec = await api<{ whatsapp_url: string }>(`/shop/sales/${sale.id}/receipt/?phone=${encodeURIComponent(waPhone)}`);
+      setCart([]); setPaid(""); setCustomer(null); setCustQuery(""); setCusts([]); setWaPhone("");
       txnId.current = Crypto.randomUUID();
       Alert.alert(`Bill ${sale.invoice_number}`, `Total ₹${sale.total}`, [
         { text: "Done" },
@@ -148,6 +149,7 @@ export default function Pos() {
               <Button title="UPI" kind={method === "upi" ? "primary" : "ghost"} onPress={() => setMethod("upi")} />
             </View>
             <Input placeholder="Customer name/phone (needed for credit)" value={custQuery} onChangeText={searchCustomers} />
+            <Input placeholder="Customer's WhatsApp number (optional, to send the bill)" keyboardType="phone-pad" value={waPhone} onChangeText={setWaPhone} />
             {customer && <Text style={{ color: colors.primary }}>Selected: {customer.name}</Text>}
             {custs.map((c) => <Button key={c.id} kind="ghost" title={`${c.name} ${c.phone}`} onPress={() => { setCustomer(c); setCusts([]); }} />)}
             <Err msg={err} />

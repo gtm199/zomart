@@ -56,7 +56,8 @@ class SaleViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModelMixi
     def receipt(self, request, pk=None):
         sale = self.get_object()
         text = receipt_service.build_receipt_text(sale)
-        return Response({"text": text, "whatsapp_url": receipt_service.whatsapp_url(sale, text)})
+        phone = request.query_params.get("phone")
+        return Response({"text": text, "whatsapp_url": receipt_service.whatsapp_url(sale, text, phone)})
 
 
 class DailySummaryView(APIView):

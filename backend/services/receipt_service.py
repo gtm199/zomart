@@ -24,12 +24,19 @@ def build_receipt_text(sale):
     return "\n".join(lines)
 
 
-def whatsapp_url(sale, text):
-    """Manual-share fallback (wa.me). Official Cloud API sending is listed in FUTURE_FEATURES.txt."""
-    number = ""
-    if sale.customer_id:
-        raw = sale.customer.whatsapp_number or sale.customer.phone
-        digits = "".join(c for c in raw if c.isdigit())
-        if digits:
-            number = digits if len(digits) > 10 else "91" + digits
+def clean_number(raw):
+    """Digits only. A 10-digit Indian number gets 91 in front; numbers that already carry a country code are kept."""
+    digits = "".join(c for c in (raw or "") if c.isdigit())
+    if len(digits) == 11 and digits.startswith("0"):
+        digits = digits[1:]
+    if len(digits) == 10:
+        return "91" + digits
+    return digits
+
+
+def whatsapp_url(sale, text, phone=None):
+    """Manual-share link. Uses the typed number first, then the customer's saved number."""
+    number = clean_number(phone) if phone else ""
+    if not number and sale.customer_id:
+        number = clean_number(sale.customer.whatsapp_number or sale.customer.phone)
     return f"https://wa.me/{number}?text={quote(text)}"
