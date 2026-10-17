@@ -22,12 +22,14 @@ class SaleViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModelMixi
     serializer_class = SaleSerializer
     required_caps = {"list": Cap.VIEW_SALES, "retrieve": Cap.VIEW_SALES, "receipt": Cap.VIEW_SALES,
                      "create": Cap.SELL, "return_items": Cap.REFUND}
-
+  
     def get_queryset(self):
         qs = super().get_queryset()
         p = self.request.query_params
         if p.get("customer", "").isdigit():
             qs = qs.filter(customer_id=p["customer"])
+        if p.get("needs_review") == "true":
+            qs = qs.filter(needs_review=True)
         day = p.get("date")
         if day:
             try:
@@ -42,11 +44,12 @@ class SaleViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModelMixi
         d = s.validated_data
         sale, created = billing_service.create_sale(
             shop=request.shop, user=request.user, client_txn_id=d["client_txn_id"], items=d["items"],
-            payments=d["payments"], customer_id=d["customer"], notes=d["notes"])
+            payments=d["payments"], customer_id=d["customer"], notes=d["notes"],
+            offline=d["offline"], client_created_at=d["client_created_at"])
         sale = self.get_queryset().get(pk=sale.pk)
         # 201 for a new sale, 200 when this exact client_txn_id was already processed (safe retry)
         return Response(SaleSerializer(sale).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-
+    
     @action(detail=True, methods=["post"], url_path="return")
     def return_items(self, request, pk=None):
         sale = self.get_object()

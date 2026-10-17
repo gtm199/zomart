@@ -11,7 +11,7 @@ def post_entry(*, customer_id, entry_type, amount, user=None, sale=None, note=""
     """amount > 0 increases what the customer owes; amount < 0 reduces it."""
     customer = Customer.objects.select_for_update().get(pk=customer_id)
     customer.balance = customer.balance + amount
-    customer.save(update_fields=["balance"])
+    customer.save(update_fields=["balance", "updated_at"])
     return CustomerLedger.objects.create(
         shop=customer.shop, customer=customer, entry_type=entry_type, amount=amount,
         balance_after=customer.balance, sale=sale, note=note, created_by=user,

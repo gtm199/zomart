@@ -22,6 +22,10 @@ class Sale(models.Model):
     amount_due = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     credit_reversed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     notes = models.CharField(max_length=255, blank=True)
+    is_offline = models.BooleanField(default=False)
+    needs_review = models.BooleanField(default=False)
+    review_note = models.TextField(blank=True, default="")
+    client_created_at = models.DateTimeField(null=True, blank=True)  # time the bill was made on the phone
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

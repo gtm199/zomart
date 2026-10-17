@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { Button, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
 import { useSession } from "../../store/session";
+import SyncBanner from "../../components/SyncBanner";
 
 const ITEMS = [
   { title: "Purchases", subtitle: "Suppliers, receive stock, pay suppliers", icon: "cart-outline", path: "/(shop)/purchases", cap: "view_purchases" },
@@ -12,6 +13,7 @@ const ITEMS = [
   { title: "Reports", subtitle: "Profit, top sellers, dues", icon: "bar-chart-outline", path: "/(shop)/reports", cap: "view_reports" },
   { title: "Cash close", subtitle: "Count the drawer at end of day", icon: "calculator-outline", path: "/(shop)/cashclose", cap: "view_reports" },
   { title: "Today", subtitle: "Daily sales summary", icon: "stats-chart-outline", path: "/(shop)/today", cap: "view_shop" },
+  { title: "Offline & sync", subtitle: "Bills waiting to upload, bills to review", icon: "sync-outline", path: "/(shop)/sync", cap: "sell" },
 ] as const;
 
 export default function Menu() {
@@ -35,6 +37,7 @@ export default function Menu() {
         <Text style={{ fontSize: 18, fontWeight: "700" }}>{shop?.name}</Text>
         <Muted>Role: {shop?.role}</Muted>
         <View style={{ height: 12 }} />
+        <SyncBanner />
 
         {expired + soon > 0 && (
           <Pressable

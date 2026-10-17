@@ -27,13 +27,14 @@ class SaleSerializer(serializers.ModelSerializer):
         model = Sale
         fields = ["id", "invoice_number", "client_txn_id", "customer", "customer_name", "status", "subtotal",
                   "discount_total", "tax_total", "total", "amount_paid", "amount_due", "notes", "created_at",
-                  "items", "payments"]
+                  "is_offline", "needs_review", "review_note", "items", "payments"]
 
 
 class CheckoutItemSerializer(serializers.Serializer):
     shop_product = serializers.IntegerField()
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3, min_value=Decimal("0.001"))
     discount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"), required=False, default=0)
+    unit_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"), required=False, allow_null=True, default=None)
 
 
 class CheckoutPaymentSerializer(serializers.Serializer):
@@ -48,6 +49,8 @@ class CheckoutSerializer(serializers.Serializer):
     items = CheckoutItemSerializer(many=True, allow_empty=False)
     payments = CheckoutPaymentSerializer(many=True, required=False, default=list)
     notes = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    offline = serializers.BooleanField(required=False, default=False)
+    client_created_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
 
 
 class ReturnItemSerializer(serializers.Serializer):

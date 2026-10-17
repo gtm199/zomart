@@ -12,6 +12,7 @@ class Customer(models.Model):
     notes = models.CharField(max_length=255, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)  # lets the phone ask "what changed?"
 
     class Meta:
         ordering = ["name"]

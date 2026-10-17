@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
 import { Pressable } from "react-native";
 import { colors } from "../../components/ui";
+import { useEffect } from "react";
+import { startSyncLoop } from "../../services/sync";
 
 function BackToMenu() {
   const router = useRouter();
@@ -15,6 +17,7 @@ function BackToMenu() {
 const hidden = (title: string) => ({ href: null, title, headerLeft: () => <BackToMenu /> });
 
 export default function ShopTabs() {
+  useEffect(() => startSyncLoop(), []);
   return (
     <Tabs
       backBehavior="history"
@@ -47,6 +50,7 @@ export default function ShopTabs() {
       <Tabs.Screen name="reports" options={hidden("Reports")} />
       <Tabs.Screen name="cashclose" options={hidden("Cash close")} />
       <Tabs.Screen name="today" options={hidden("Today")} />
+      <Tabs.Screen name="sync" options={hidden("Offline & sync")} />
       <Tabs.Screen name="customerbills" options={{ href: null, title: "Customer bills" }} />
     </Tabs>
   );
