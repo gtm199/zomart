@@ -1,4 +1,4 @@
-export type Shop = { id: number; name: string; role: string; capabilities: string[] };
+export type Shop = { id: number; name: string; role: string; approved: boolean; capabilities: string[] };
 export type Session = { token: string; user: { id: number; username: string; full_name: string }; shops: Shop[] };
 export type Master = {
   id: number; display_name: string; name: string; brand_name: string; mrp: string | null;

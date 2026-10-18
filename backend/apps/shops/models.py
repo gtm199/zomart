@@ -13,6 +13,9 @@ class Shop(models.Model):
     is_active = models.BooleanField(default=True)
     allow_negative_stock = models.BooleanField(default=False)
     invoice_counter = models.PositiveIntegerField(default=0)
+    is_approved = models.BooleanField(default=True)
+    payment_code = models.CharField(max_length=20, blank=True)  # the shop writes this in the UPI note
+    pay_paise = models.PositiveSmallIntegerField(default=0)     # extra paise added to this shop's amount
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

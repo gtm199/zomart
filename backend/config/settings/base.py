@@ -23,6 +23,9 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-change-me")
 DEBUG = False
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
+NEW_SHOPS_NEED_APPROVAL = env_bool("NEW_SHOPS_NEED_APPROVAL", False)
+PAYMENT_CODE_PREFIX = os.environ.get("PAYMENT_CODE_PREFIX", "KP")
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -133,3 +136,4 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+

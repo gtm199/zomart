@@ -30,6 +30,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-grocery}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-grocery_dev_password}
       MEDIA_ROOT: /app/media
+      NEW_SHOPS_NEED_APPROVAL: ${NEW_SHOPS_NEED_APPROVAL:-0}
     depends_on:
       db:
         condition: service_healthy

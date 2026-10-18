@@ -38,6 +38,8 @@ class ShopAccess(BasePermission):
         membership = resolve_membership(request.user, raw)
         if membership is None:
             raise PermissionDenied("You do not have access to this shop.")
+        if not membership.shop.is_approved:
+            raise PermissionDenied("Your shop is waiting for approval by the platform team.")
         cap = required_cap(view, request)
         if cap is None or not membership.has_cap(cap):
             raise PermissionDenied("Your role does not allow this action.")

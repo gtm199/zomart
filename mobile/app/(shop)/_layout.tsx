@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
-import { Pressable } from "react-native";
-import { colors } from "../../components/ui";
 import { useEffect } from "react";
+import { Pressable, Text } from "react-native";
+import { Button, Card, Muted, Screen, colors } from "../../components/ui";
 import { startSyncLoop } from "../../services/sync";
+import { useSession } from "../../store/session";
 
 function BackToMenu() {
   const router = useRouter();
@@ -15,34 +16,36 @@ function BackToMenu() {
 }
 
 const hidden = (title: string) => ({ href: null, title, headerLeft: () => <BackToMenu /> });
+const icon = (name: any) => ({ color, size }: { color: string; size: number }) => <Ionicons name={name} size={size} color={color} />;
 
 export default function ShopTabs() {
-  useEffect(() => startSyncLoop(), []);
+  const { shop, refresh, signOut } = useSession();
+
+  useEffect(() => {
+    if (!shop?.approved) return;
+    return startSyncLoop();
+  }, [shop?.id, shop?.approved]);
+
+  if (shop && !shop.approved) {
+    return (
+      <Screen>
+        <Card>
+          <Text style={{ fontSize: 18, fontWeight: "700" }}>Waiting for approval</Text>
+          <Muted>Your shop "{shop.name}" is registered. We will switch it on after a quick check, then your free trial starts.</Muted>
+          <Button title="Check again" onPress={() => refresh().catch(() => {})} />
+          <Button title="Sign out" kind="ghost" onPress={signOut} />
+        </Card>
+      </Screen>
+    );
+  }
+
   return (
-    <Tabs
-      backBehavior="history"
-      screenOptions={{ tabBarActiveTintColor: colors.primary, headerTitleAlign: "center" }}
-    >
-      <Tabs.Screen
-        name="pos"
-        options={{ title: "Bill", tabBarIcon: ({ color, size }) => <Ionicons name="receipt-outline" size={size} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="catalogue"
-        options={{ title: "Catalogue", tabBarIcon: ({ color, size }) => <Ionicons name="grid-outline" size={size} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="stock"
-        options={{ title: "My Stock", tabBarIcon: ({ color, size }) => <Ionicons name="cube-outline" size={size} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="customers"
-        options={{ title: "Customers", tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" size={size} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="menu"
-        options={{ title: "Menu", tabBarIcon: ({ color, size }) => <Ionicons name="menu-outline" size={size} color={color} /> }}
-      />
+    <Tabs key={shop?.id} backBehavior="history" screenOptions={{ tabBarActiveTintColor: colors.primary, headerTitleAlign: "center" }}>
+      <Tabs.Screen name="pos" options={{ title: "Bill", tabBarIcon: icon("receipt-outline") }} />
+      <Tabs.Screen name="catalogue" options={{ title: "Catalogue", tabBarIcon: icon("grid-outline") }} />
+      <Tabs.Screen name="stock" options={{ title: "My Stock", tabBarIcon: icon("cube-outline") }} />
+      <Tabs.Screen name="customers" options={{ title: "Customers", tabBarIcon: icon("people-outline") }} />
+      <Tabs.Screen name="menu" options={{ title: "Menu", tabBarIcon: icon("menu-outline") }} />
 
       {/* Opened from the Menu tab; hidden from the bottom bar */}
       <Tabs.Screen name="purchases" options={hidden("Purchases")} />
@@ -52,7 +55,10 @@ export default function ShopTabs() {
       <Tabs.Screen name="today" options={hidden("Today")} />
       <Tabs.Screen name="sync" options={hidden("Offline & sync")} />
       <Tabs.Screen name="notifications" options={hidden("Notices")} />
-      <Tabs.Screen name="customerbills" options={{ href: null, title: "Customer bills" }} />
+      <Tabs.Screen name="customerbills" options={hidden("Customer bills")} />
+      <Tabs.Screen name="plan" options={hidden("Plan & payment")} />
+      <Tabs.Screen name="staff" options={hidden("Staff")} />
+      <Tabs.Screen name="shops" options={hidden("Switch shop")} />
     </Tabs>
   );
 }

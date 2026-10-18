@@ -9,7 +9,7 @@ from apps.shops.roles import ROLE_CAPS
 from services import subscription_service
 
 from .models import User
-
+from django.conf import settings
 
 def session_payload(user):
     token, _ = Token.objects.get_or_create(user=user)
@@ -19,7 +19,8 @@ def session_payload(user):
         "user": {"id": user.id, "username": user.username, "full_name": user.first_name,
                  "phone": user.phone, "is_staff": user.is_staff},
         "shops": [
-            {"id": m.shop_id, "name": m.shop.name, "role": m.role, "capabilities": sorted(ROLE_CAPS[m.role])}
+            {"id": m.shop_id, "name": m.shop.name, "role": m.role, "approved": m.shop.is_approved,
+             "capabilities": sorted(ROLE_CAPS[m.role])}
             for m in memberships
         ],
     }
@@ -52,9 +53,13 @@ class VendorRegistrationSerializer(serializers.Serializer):
             username=data["username"], password=data["password"],
             first_name=data["full_name"], phone=data["phone"],
         )
-        shop = Shop.objects.create(name=data["shop_name"], city=data["city"], address=data["address"], phone=data["phone"])
+        approved = not getattr(settings, "NEW_SHOPS_NEED_APPROVAL", False)
+        shop = Shop.objects.create(name=data["shop_name"], city=data["city"], address=data["address"],
+                                   phone=data["phone"], is_approved=approved)
         ShopMembership.objects.create(user=user, shop=shop, role=ShopMembership.Role.OWNER)
-        subscription_service.start_trial(shop)
+        subscription_service.ensure_payment_identity(shop)
+        if approved:
+            subscription_service.start_trial(shop)
         return user
 
 

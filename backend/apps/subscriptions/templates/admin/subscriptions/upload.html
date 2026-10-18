@@ -1,0 +1,65 @@
+{% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Home</a> &rsaquo; Upload bank statement</div>
+{% endblock %}
+{% block content %}
+<div id="content-main">
+  <p>Download your account statement from net banking as CSV or Excel and upload it here.
+     Nothing is saved or renewed until you press <strong>Apply</strong> on the preview.</p>
+  <form method="post" enctype="multipart/form-data">{% csrf_token %}
+    <input type="file" name="file" accept=".csv,.xlsx" required>
+    <button type="submit" class="button default">Read statement</button>
+  </form>
+
+  {% if previewed %}
+  <form method="post" style="margin-top:24px">{% csrf_token %}
+    <h2>1. Check the columns</h2>
+    <p>Pick the column for each item. They are chosen automatically; fix them if they look wrong.</p>
+    <table>
+      <tr>
+      {% for field, current in choices %}
+        <td style="padding-right:16px"><strong>{{ field }}</strong><br>
+          <select name="map_{{ field }}">
+            <option value="">(none)</option>
+            {% for i, h in header_list %}
+              <option value="{{ i }}" {% if current == i %}selected{% endif %}>{{ h }}</option>
+            {% endfor %}
+          </select>
+        </td>
+      {% endfor %}
+      </tr>
+    </table>
+    <button type="submit" name="preview" value="1" class="button">Update preview</button>
+
+    <h2 style="margin-top:24px">2. What will happen</h2>
+    <p><strong>{{ counts.renew }}</strong> shop(s) will be renewed automatically &middot;
+       <strong>{{ counts.review }}</strong> payment(s) need your decision &middot;
+       {{ counts.skipped }} already recorded or repeated.</p>
+    <table style="width:100%">
+      <thead><tr><th>Date</th><th>Amount</th><th>Narration</th><th>Result</th></tr></thead>
+      <tbody>
+      {% for r in results %}
+        <tr>
+          <td>{{ r.date|default:"-" }}</td>
+          <td>{{ r.amount }}</td>
+          <td>{{ r.narration|truncatechars:70 }}</td>
+          <td>
+            {% if r.outcome == "renew" %}
+              Renew <strong>{{ r.shop.name }}</strong> &ndash; {{ r.plan.name }}, {{ r.months }} month(s) <em>(matched by {{ r.how }})</em>
+            {% elif r.outcome == "review" %}
+              <span style="color:#b45309">Needs your decision{% if r.shop %} (shop: {{ r.shop.name }}){% endif %}: {{ r.note }}</span>
+            {% elif r.outcome == "seen" %}Already recorded
+            {% else %}Repeated in this file{% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">No money-received lines found. Check the "credit" column above.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <br>
+    <button type="submit" name="apply" value="1" class="button default">Apply: renew {{ counts.renew }} shop(s) and save the rest for review</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
