@@ -1,0 +1,27 @@
+{% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Home</a> &rsaquo; Catalogue dashboard</div>
+{% endblock %}
+{% block content %}
+<div id="content-main">
+  <table style="width:100%">
+    <thead><tr><th>Check</th><th>Products</th><th>Note</th></tr></thead>
+    <tbody>
+    {% for label, value, url, hint in stats %}
+      <tr><td><a href="{{ url }}">{{ label }}</a></td><td><strong>{{ value }}</strong></td><td>{{ hint }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <h2 style="margin-top:24px">Most used products</h2>
+  <table style="width:100%">
+    <thead><tr><th>Product</th><th>Shops using it</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for p in top %}
+      <tr><td><a href="{% url 'admin:catalog_masterproduct_change' p.pk %}">{{ p }}</a></td><td>{{ p.n }}</td><td>{{ p.status }}</td></tr>
+    {% empty %}
+      <tr><td colspan="3">No shop uses a product yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

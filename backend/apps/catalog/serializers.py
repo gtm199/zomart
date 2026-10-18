@@ -58,9 +58,9 @@ class MasterProductAdminSerializer(serializers.ModelSerializer):
         model = MasterProduct
         fields = ["id", "display_name", "name", "brand", "category", "pack_size", "unit", "description", "image",
                   "mrp", "tax_rate", "hsn_code", "is_loose", "search_keywords", "status", "barcodes",
-                  "vendor_count", "created_at", "updated_at"]
-        read_only_fields = ["created_at", "updated_at"]
-
+                  "vendor_count", "mrp_source", "mrp_verified_at", "merged_into", "created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at", "mrp_source", "mrp_verified_at", "merged_into"]
+        
     def validate(self, attrs):
         get = lambda k: attrs.get(k, getattr(self.instance, k, None) if self.instance else None)
         brand = get("brand")
@@ -72,6 +72,8 @@ class MasterProductAdminSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        catalog_service.ensure_can_set_status(self.context["request"].user, MasterProduct.Status.DRAFT,
+                                              validated_data.get("status", MasterProduct.Status.DRAFT))
         barcodes = validated_data.pop("barcodes", [])
         product = MasterProduct.objects.create(created_by=self.context["request"].user, **validated_data)
         for i, b in enumerate(barcodes):
@@ -79,6 +81,8 @@ class MasterProductAdminSerializer(serializers.ModelSerializer):
         return product
 
     def update(self, instance, validated_data):
+        if "status" in validated_data:
+            catalog_service.ensure_can_set_status(self.context["request"].user, instance.status, validated_data["status"])
         validated_data.pop("barcodes", None)  # managed via the add-barcode action
         return super().update(instance, validated_data)
 

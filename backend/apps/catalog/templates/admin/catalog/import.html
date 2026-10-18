@@ -1,0 +1,42 @@
+{% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Home</a> &rsaquo; Import products</div>
+{% endblock %}
+{% block content %}
+<div id="content-main">
+  <p>Columns: <code>name, brand, category, pack_size, unit, barcode, mrp, tax_rate, description</code>.
+     Units: g, kg, ml, l, pc. Format the barcode column as <strong>Text</strong> in Excel.
+     Nothing is saved until you check the preview and press Save.</p>
+  <form method="post" enctype="multipart/form-data">{% csrf_token %}
+    <input type="file" name="file" accept=".csv,.xlsx" required>
+    <button type="submit" class="button default">Preview</button>
+  </form>
+
+  {% if previewed %}
+    <h2 style="margin-top:24px">Preview of {{ filename }}</h2>
+    <p><strong>{{ good_count }}</strong> row(s) are fine.
+       <strong>{{ errors|length }}</strong> row(s) have problems and will be skipped.</p>
+    {% if errors %}
+      <ul>{% for e in errors %}<li style="color:#b91c1c">{{ e }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if sample %}
+      <table style="width:100%">
+        <thead><tr><th>Name</th><th>Brand</th><th>Pack</th><th>Category</th><th>Barcode</th></tr></thead>
+        <tbody>
+        {% for r in sample %}
+          <tr><td>{{ r.name }}</td><td>{{ r.brand }}</td><td>{{ r.pack_size }} {{ r.unit }}</td>
+              <td>{{ r.category }}</td><td>{% if r.barcode %}{{ r.barcode.0 }}{% endif %}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <p>(first 20 rows shown)</p>
+      <form method="post">{% csrf_token %}
+        {% if can_activate %}
+          <label><input type="checkbox" name="activate"> Make them ACTIVE now (otherwise they are saved as draft)</label><br><br>
+        {% endif %}
+        <button type="submit" name="commit" value="1" class="button default">Save {{ good_count }} product(s)</button>
+      </form>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 from core.tenancy import ShopAccess, ShopScopedMixin
 from services import subscription_service
 
-from .models import ShopMembership
+from .models import ShopMembership, ShopNotification
 from .roles import Cap
 from .serializers import MemberCreateSerializer, MemberSerializer, MemberUpdateSerializer, ShopSerializer
 
@@ -70,3 +70,20 @@ class MemberViewSet(ShopScopedMixin, mixins.ListModelMixin, mixins.CreateModelMi
         s.is_valid(raise_exception=True)
         s.save()
         return Response(MemberSerializer(member).data)
+
+class NotificationView(APIView):
+    permission_classes = [IsAuthenticated, ShopAccess]
+    required_caps = {"get": Cap.VIEW_SHOP, "post": Cap.VIEW_SHOP}
+
+    def get(self, request):
+        qs = ShopNotification.objects.filter(shop=request.shop)
+        return Response({
+            "unread_count": qs.filter(read_at__isnull=True).count(),
+            "results": [{"id": n.id, "title": n.title, "message": n.message, "created_at": n.created_at,
+                         "read": n.read_at is not None} for n in qs[:50]],
+        })
+
+    def post(self, request):
+        """Mark every notice as read."""
+        n = ShopNotification.objects.filter(shop=request.shop, read_at__isnull=True).update(read_at=timezone.now())
+        return Response({"marked_read": n})

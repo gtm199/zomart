@@ -55,6 +55,12 @@ class MasterProduct(models.Model):
     is_loose = models.BooleanField(default=False, help_text="Sold loose / without a barcode")
     search_keywords = models.CharField(max_length=300, blank=True)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.DRAFT)
+    merged_into = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="merged_from")
+    mrp_source = models.CharField(max_length=20, blank=True, choices=[
+        ("pack", "Checked on the pack"), ("manufacturer", "Manufacturer"),
+        ("distributor", "Distributor price list"), ("other", "Other")])
+    mrp_verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    mrp_verified_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -62,6 +68,7 @@ class MasterProduct(models.Model):
     class Meta:
         ordering = ["name"]
         indexes = [models.Index(fields=["status", "name"])]
+        permissions = [("approve_masterproduct", "Can activate or deactivate master products")]
 
     @property
     def pack_label(self):

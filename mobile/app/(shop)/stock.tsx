@@ -108,6 +108,7 @@ export default function Stock() {
                 {sp.purchase_cost !== undefined ? ` · Cost ₹${sp.purchase_cost}` : ""}
               </Text>
               {ex && <Text style={{ color: ex.color, fontWeight: sp.expiry_status === "ok" ? "400" : "700" }}>{ex.text}</Text>}
+              {!sp.master_active && <Text style={{ color: colors.danger, fontWeight: "700" }}>Removed from catalogue: cannot be sold</Text>}
               {open === sp.id ? (
                 <>
                   <Muted>Selling price (₹)</Muted>

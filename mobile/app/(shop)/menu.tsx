@@ -20,11 +20,13 @@ export default function Menu() {
   const router = useRouter();
   const { shop, can, signOut } = useSession();
   const [alerts, setAlerts] = useState<{ expired_count: number; expiring_soon_count: number } | null>(null);
+  const [notices, setNotices] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       if (!can("view_products")) return;
       api("/shop/products/expiry-alerts/").then(setAlerts).catch(() => {});
+      api<{ unread_count: number }>("/shop/notifications/").then((r) => setNotices(r.unread_count)).catch(() => {});
     }, [])
   );
 
@@ -38,6 +40,16 @@ export default function Menu() {
         <Muted>Role: {shop?.role}</Muted>
         <View style={{ height: 12 }} />
         <SyncBanner />
+
+        {notices > 0 && (
+          <Pressable
+            onPress={() => router.push("/(shop)/notifications")}
+            style={{ backgroundColor: "#fee2e2", borderRadius: 10, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: colors.danger }}
+          >
+            <Text style={{ fontWeight: "700", color: colors.danger }}>{notices} new notice(s) from the catalogue team</Text>
+            <Muted>Tap to read</Muted>
+          </Pressable>
+        )}
 
         {expired + soon > 0 && (
           <Pressable

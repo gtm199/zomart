@@ -121,10 +121,17 @@ class AdminProductViewSet(viewsets.ModelViewSet):
 
     def _set_status(self, new_status):
         product = self.get_object()
+        catalog_service.ensure_can_set_status(self.request.user, product.status, new_status)
         before = catalog_service.snapshot(product)
         product.status = new_status
         product.save(update_fields=["status", "updated_at"])
         catalog_service.log_changes(product, before, self.request.user)
+        return Response(self.get_serializer(product).data)
+
+    @action(detail=True, methods=["post"])
+    def verify(self, request, pk=None):
+        product = self.get_object()
+        catalog_service.mark_verified(product, request.user, request.data.get("source", "pack"))
         return Response(self.get_serializer(product).data)
 
 
