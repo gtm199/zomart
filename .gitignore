@@ -1,9 +1,13 @@
 .env
+.env.*
+!.env.example
 __pycache__/
 *.pyc
 .venv/
+venv/
 db.sqlite3
 backend/media/
 backend/staticfiles/
+backups/
 mobile/node_modules/
 mobile/.expo/
