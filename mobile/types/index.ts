@@ -2,7 +2,8 @@ export type Shop = { id: number; name: string; role: string; approved: boolean; 
 export type Session = { token: string; user: { id: number; username: string; full_name: string }; shops: Shop[] };
 export type Master = {
   id: number; display_name: string; name: string; brand_name: string; mrp: string | null;
-  tax_rate: string | null; barcodes: string[]; my_listing_id: number | null;
+  tax_rate: string | null; barcodes: string[]; my_listing_id: number | null; 
+  unit: string; is_loose: boolean;
 };
 export type ShopProduct = {
   id: number; master_product: Master; selling_price: string; purchase_cost?: string;
@@ -10,5 +11,5 @@ export type ShopProduct = {
   expiry_date: string | null; days_to_expiry: number | null; expiry_status: "expired" | "expiring_soon" | "ok" | null;
 };
 
-export type Customer = { id: number; name: string; phone: string; balance: string };
+export type Customer = { id: number; name: string; phone: string; whatsapp_number: string; balance: string; credit_limit: string | null };
 export type Page<T> = { count: number; results: T[] };

@@ -104,7 +104,7 @@ export default function Stock() {
             <Card>
               <Text style={{ fontWeight: "600" }}>{sp.master_product.display_name}</Text>
               <Text style={{ color: sp.is_low_stock ? colors.danger : colors.text }}>
-                Stock {sp.stock_qty} · Sell ₹{sp.selling_price}
+                Stock {sp.stock_qty}{sp.master_product.is_loose ? ` ${sp.master_product.unit}` : ""}
                 {sp.purchase_cost !== undefined ? ` · Cost ₹${sp.purchase_cost}` : ""}
               </Text>
               {ex && <Text style={{ color: ex.color, fontWeight: sp.expiry_status === "ok" ? "400" : "700" }}>{ex.text}</Text>}

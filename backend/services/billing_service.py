@@ -130,6 +130,13 @@ def _create_sale(shop, user, client_txn_id, items, payments, customer_id, notes,
     due = total - paid
     if due > 0 and customer is None:
         raise BusinessRuleError("Select a customer to sell on credit.", "customer_required")
+    if due > 0 and customer.credit_limit is not None and customer.balance + due > customer.credit_limit:
+        note = (f"{customer.name} is over the credit limit (limit {customer.credit_limit}, "
+                f"owes {customer.balance}, this bill adds {due})")
+        if offline:
+            flags.append(note)  # the goods already left the shop: keep the bill, tell the owner
+        else:
+            raise BusinessRuleError(note, "credit_limit", 409)
 
     backdate_to = None
     if offline and client_created_at:
@@ -156,6 +163,7 @@ def _create_sale(shop, user, client_txn_id, items, payments, customer_id, notes,
             barcode=primary.code if primary else "", quantity=quantity,
             unit_price=price, discount=discount, tax_rate=rate,
             tax_amount=tax, line_total=line_total, purchase_cost=sp.purchase_cost,
+            unit=master.unit if master.is_loose else "",
         )
         inventory_service.apply_movement(
             shop_product_id=sp.pk, delta=-quantity, movement_type=StockMovement.Type.SALE,

@@ -70,7 +70,8 @@ def _validate(row, seen_barcodes, seen_keys):
         seen_barcodes.add(barcode[0])
     return {"name": name, "brand": brand_name, "category": (row.get("category") or "").strip(),
             "pack_size": pack, "unit": unit, "mrp": mrp, "tax_rate": tax,
-            "description": (row.get("description") or "").strip(), "barcode": barcode}
+            "description": (row.get("description") or "").strip(), "barcode": barcode,
+            "loose": (row.get("loose") or "").strip().lower() in {"1", "yes", "true", "y"},}
 
 
 def validate_rows(rows):
@@ -94,7 +95,7 @@ def commit_rows(good, activate=False):
                         or Category.objects.create(name=d["category"]))
         product = MasterProduct.objects.create(
             name=d["name"], brand=brand, category=category, pack_size=d["pack_size"], unit=d["unit"],
-            mrp=d["mrp"], tax_rate=d["tax_rate"], description=d["description"],
+            mrp=d["mrp"], tax_rate=d["tax_rate"], description=d["description"], is_loose=d["loose"],
             status=MasterProduct.Status.ACTIVE if activate else MasterProduct.Status.DRAFT)
         if d["barcode"]:
             ProductBarcode.objects.create(product=product, code=d["barcode"][0], symbology=d["barcode"][1], is_primary=True)

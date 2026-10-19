@@ -9,6 +9,7 @@ from services import customer_service
 
 from .models import Customer
 from .serializers import CustomerSerializer, LedgerSerializer, ReceivePaymentSerializer
+from rest_framework.exceptions import PermissionDenied
 
 
 class CustomerViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModelMixin,
@@ -31,6 +32,18 @@ class CustomerViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModel
             qs = qs.filter(balance__gt=0)
         return qs
 
+    def _only_trusted_may_set_limit(self, request):
+        if "credit_limit" in request.data and request.membership.role not in ("owner", "manager"):
+            raise PermissionDenied("Only the owner or a manager can set credit limits.")
+
+    def create(self, request, *args, **kwargs):
+        self._only_trusted_may_set_limit(request)
+        return super().create(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        self._only_trusted_may_set_limit(request)
+        return super().partial_update(request, *args, **kwargs)
+    
     def perform_create(self, serializer):
         serializer.save(shop=self.request.shop)
 

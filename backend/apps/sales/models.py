@@ -45,6 +45,7 @@ class SaleItem(models.Model):
     sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="items")
     shop_product = models.ForeignKey("inventory.ShopProduct", on_delete=models.PROTECT, related_name="+")
     product_name = models.CharField(max_length=300)
+    unit = models.CharField(max_length=3, blank=True, default="")  # kg / g / l / ml for loose items, blank for packs
     barcode = models.CharField(max_length=48, blank=True)
     quantity = models.DecimalField(max_digits=12, decimal_places=3)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)

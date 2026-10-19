@@ -59,6 +59,7 @@ export default function ShopTabs() {
       <Tabs.Screen name="plan" options={hidden("Plan & payment")} />
       <Tabs.Screen name="staff" options={hidden("Staff")} />
       <Tabs.Screen name="shops" options={hidden("Switch shop")} />
+      <Tabs.Screen name="bills" options={hidden("Past bills")} />
     </Tabs>
   );
 }

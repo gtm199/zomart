@@ -16,6 +16,7 @@ const ITEMS = [
   { title: "Today", subtitle: "Daily sales summary", icon: "stats-chart-outline", path: "/(shop)/today", cap: "view_shop" },
   { title: "Staff", subtitle: "Add cashiers, switch them off", icon: "people-circle-outline", path: "/(shop)/staff", cap: "manage_members" },
   { title: "Offline & sync", subtitle: "Bills waiting to upload, bills to review", icon: "sync-outline", path: "/(shop)/sync", cap: "sell" },
+  { title: "Past bills", subtitle: "Find a bill, share PDF, print", icon: "documents-outline", path: "/(shop)/bills", cap: "view_sales" },
 ] as const;
 
 type Plan = { write_allowed: boolean; days_left: number | null; reminder_days: number };

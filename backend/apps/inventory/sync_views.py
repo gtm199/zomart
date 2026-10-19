@@ -51,9 +51,12 @@ class SyncView(APIView):
                 "stock_qty": str(p.stock_qty),
                 "is_enabled": p.is_enabled and p.master_product.status == MasterProduct.Status.ACTIVE,
                 "whole": p.master_product.unit == MasterProduct.Unit.PIECE,
+                "unit": p.master_product.unit,
+                "loose": p.master_product.is_loose,
             } for p in products],
             "customers": [{
                 "id": c.id, "name": c.name, "phone": c.phone, "whatsapp_number": c.whatsapp_number,
                 "balance": str(c.balance), "is_active": c.is_active,
+                "credit_limit": None if c.credit_limit is None else str(c.credit_limit),
             } for c in customers],
         })

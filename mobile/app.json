@@ -14,7 +14,8 @@
           "cameraPermission": "Allow Kirana POS to use the camera to scan product barcodes."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-sharing"
     ],
     "android": {
       "package": "com.example.kiranapos"

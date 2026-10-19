@@ -8,9 +8,8 @@ from .models import Payment, Sale, SaleItem
 class SaleItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = SaleItem
-        fields = ["id", "shop_product", "product_name", "barcode", "quantity", "unit_price", "discount",
+        fields = ["id", "shop_product", "product_name", "unit", "barcode", "quantity", "unit_price", "discount",
                   "tax_rate", "tax_amount", "line_total", "returned_qty"]
-
 
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:

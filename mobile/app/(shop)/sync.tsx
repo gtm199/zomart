@@ -6,6 +6,7 @@ import { api } from "../../services/api";
 import { PendingSale, discardSale, kvGet, listAll, retrySale } from "../../services/localdb";
 import { waLink } from "../../services/receipt";
 import { notifySync, runSync } from "../../services/sync";
+import { getShopInfo, receiptHtml, shareReceiptPdf, toCents } from "../../services/receipt";
 
 type Flagged = { id: number; invoice_number: string; total: string; review_note: string; created_at: string };
 
@@ -75,6 +76,10 @@ export default function SyncScreen() {
               </Text>
               {r.last_error ? <Text style={{ color: colors.danger }}>{r.last_error}</Text> : null}
               <Button title="Send bill on WhatsApp" kind="ghost" onPress={() => Linking.openURL(waLink(s.phone, s.receipt))} />
+              <Button title="Share PDF" kind="ghost" onPress={async () => {
+                const info = await getShopInfo("");
+                shareReceiptPdf(receiptHtml(info, { ref: s.ref, whenISO: r.created_at, customer: s.customer, lines: s.lines, totalC: toCents(s.total), paidC: toCents(s.paid) }));
+              }} />
               {r.status === "failed" && (
                 <>
                   <Button title="Try again" onPress={() => retry(r.txn_id)} />

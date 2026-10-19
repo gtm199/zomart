@@ -16,9 +16,11 @@ def normalize_phone(value):
 
 
 class CustomerSerializer(serializers.ModelSerializer):
+    credit_limit = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"),
+                                            required=False, allow_null=True)
     class Meta:
         model = Customer
-        fields = ["id", "name", "phone", "whatsapp_number", "balance", "notes", "is_active", "created_at"]
+        fields = ["id", "name", "phone", "whatsapp_number", "balance", "credit_limit", "notes", "is_active", "created_at"]
         read_only_fields = ["balance", "created_at"]
 
     def validate_phone(self, value):

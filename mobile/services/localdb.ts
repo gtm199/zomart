@@ -2,15 +2,35 @@ import * as SQLite from "expo-sqlite";
 
 export type LocalProduct = {
   id: number; name: string; barcodes: string; selling_price: string; stock_qty: string;
-  is_enabled: number; whole: number; pending_qty: number;
+  is_enabled: number; whole: number; pending_qty: number; unit: string; loose: number;
 };
-export type LocalCustomer = { id: number; name: string; phone: string; whatsapp_number: string; balance: string; is_active: number };
+export type LocalCustomer = {
+  id: number; name: string; phone: string; whatsapp_number: string; balance: string; is_active: number; credit_limit: string | null;
+};
 export type PendingSale = {
   txn_id: string; payload: string; summary: string; created_at: string;
   status: "waiting" | "failed" | "sent"; attempts: number; next_try: number; last_error: string; invoice: string;
 };
+export type HeldCart = { id: number; name: string; payload: string; created_at: string };
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+
+async function addMissingColumns(d: SQLite.SQLiteDatabase) {
+  const need: [string, string, string][] = [
+    ["products", "unit", "TEXT NOT NULL DEFAULT 'pc'"],
+    ["products", "loose", "INTEGER NOT NULL DEFAULT 0"],
+    ["customers", "credit_limit", "TEXT"],
+  ];
+  let added = false;
+  for (const [table, col, def] of need) {
+    const cols = await d.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+    if (!cols.some((c) => c.name === col)) {
+      await d.execAsync(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+      added = true;
+    }
+  }
+  if (added) await d.runAsync("DELETE FROM kv WHERE key = 'last_sync'"); // download everything again so the new columns fill in
+}
 
 export function db() {
   if (!dbPromise) {
@@ -22,15 +42,20 @@ export function db() {
         CREATE TABLE IF NOT EXISTS products (
           id INTEGER PRIMARY KEY NOT NULL, name TEXT NOT NULL, barcodes TEXT NOT NULL DEFAULT '',
           selling_price TEXT NOT NULL, stock_qty TEXT NOT NULL, is_enabled INTEGER NOT NULL DEFAULT 1,
-          whole INTEGER NOT NULL DEFAULT 0, pending_qty REAL NOT NULL DEFAULT 0);
+          whole INTEGER NOT NULL DEFAULT 0, pending_qty REAL NOT NULL DEFAULT 0,
+          unit TEXT NOT NULL DEFAULT 'pc', loose INTEGER NOT NULL DEFAULT 0);
         CREATE TABLE IF NOT EXISTS customers (
           id INTEGER PRIMARY KEY NOT NULL, name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '',
-          whatsapp_number TEXT NOT NULL DEFAULT '', balance TEXT NOT NULL DEFAULT '0', is_active INTEGER NOT NULL DEFAULT 1);
+          whatsapp_number TEXT NOT NULL DEFAULT '', balance TEXT NOT NULL DEFAULT '0', is_active INTEGER NOT NULL DEFAULT 1,
+          credit_limit TEXT);
         CREATE TABLE IF NOT EXISTS pending_sales (
           txn_id TEXT PRIMARY KEY NOT NULL, payload TEXT NOT NULL, summary TEXT NOT NULL, created_at TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'waiting', attempts INTEGER NOT NULL DEFAULT 0, next_try INTEGER NOT NULL DEFAULT 0,
           last_error TEXT NOT NULL DEFAULT '', invoice TEXT NOT NULL DEFAULT '');
+        CREATE TABLE IF NOT EXISTS held_carts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL);
       `);
+      await addMissingColumns(d);
       return d;
     })();
   }
@@ -51,7 +76,7 @@ export async function kvSet(key: string, value: string) {
 // ---------- housekeeping ----------
 export async function clearAll() {
   const d = await db();
-  await d.execAsync("DELETE FROM products; DELETE FROM customers; DELETE FROM pending_sales; DELETE FROM kv;");
+  await d.execAsync("DELETE FROM products; DELETE FROM customers; DELETE FROM pending_sales; DELETE FROM held_carts; DELETE FROM kv;");
 }
 /** A different shop on the same phone must never see the previous shop's data. */
 export async function prepareLocalDb(shopId: number) {
@@ -68,10 +93,11 @@ export async function upsertProducts(rows: any[]) {
   await d.withTransactionAsync(async () => {
     for (const r of rows) {
       await d.runAsync(
-        `INSERT INTO products (id, name, barcodes, selling_price, stock_qty, is_enabled, whole) VALUES (?,?,?,?,?,?,?)
+        `INSERT INTO products (id, name, barcodes, selling_price, stock_qty, is_enabled, whole, unit, loose) VALUES (?,?,?,?,?,?,?,?,?)
          ON CONFLICT(id) DO UPDATE SET name=excluded.name, barcodes=excluded.barcodes, selling_price=excluded.selling_price,
-           stock_qty=excluded.stock_qty, is_enabled=excluded.is_enabled, whole=excluded.whole`,
-        [r.id, r.name, "|" + r.barcodes.join("|") + "|", r.selling_price, r.stock_qty, r.is_enabled ? 1 : 0, r.whole ? 1 : 0]
+           stock_qty=excluded.stock_qty, is_enabled=excluded.is_enabled, whole=excluded.whole, unit=excluded.unit, loose=excluded.loose`,
+        [r.id, r.name, "|" + r.barcodes.join("|") + "|", r.selling_price, r.stock_qty, r.is_enabled ? 1 : 0, r.whole ? 1 : 0,
+         r.unit ?? "pc", r.loose ? 1 : 0]
       );
     }
   });
@@ -81,10 +107,10 @@ export async function upsertCustomers(rows: any[]) {
   await d.withTransactionAsync(async () => {
     for (const r of rows) {
       await d.runAsync(
-        `INSERT INTO customers (id, name, phone, whatsapp_number, balance, is_active) VALUES (?,?,?,?,?,?)
+        `INSERT INTO customers (id, name, phone, whatsapp_number, balance, is_active, credit_limit) VALUES (?,?,?,?,?,?,?)
          ON CONFLICT(id) DO UPDATE SET name=excluded.name, phone=excluded.phone, whatsapp_number=excluded.whatsapp_number,
-           balance=excluded.balance, is_active=excluded.is_active`,
-        [r.id, r.name, r.phone, r.whatsapp_number, r.balance, r.is_active ? 1 : 0]
+           balance=excluded.balance, is_active=excluded.is_active, credit_limit=excluded.credit_limit`,
+        [r.id, r.name, r.phone, r.whatsapp_number, r.balance, r.is_active ? 1 : 0, r.credit_limit ?? null]
       );
     }
   });
@@ -116,6 +142,26 @@ export async function searchCustomers(term: string) {
   const like = `%${term.replace(/[%_]/g, "")}%`;
   return d.getAllAsync<LocalCustomer>(
     "SELECT * FROM customers WHERE is_active = 1 AND (name LIKE ? OR phone LIKE ?) ORDER BY name LIMIT 20", [like, like]);
+}
+export async function getCustomer(id: number) {
+  const d = await db();
+  return d.getFirstAsync<LocalCustomer>("SELECT * FROM customers WHERE id = ?", [id]);
+}
+
+// ---------- bills put on hold (this phone only) ----------
+export async function holdCart(name: string, payload: object) {
+  const d = await db();
+  await d.runAsync("INSERT INTO held_carts (name, payload, created_at) VALUES (?,?,?)", [name, JSON.stringify(payload), new Date().toISOString()]);
+}
+/** Held bills older than two days are dropped: the goods were surely sold or put back by then. */
+export async function listHeld() {
+  const d = await db();
+  await d.runAsync("DELETE FROM held_carts WHERE created_at < ?", [new Date(Date.now() - 48 * 3600 * 1000).toISOString()]);
+  return d.getAllAsync<HeldCart>("SELECT * FROM held_carts ORDER BY id DESC");
+}
+export async function deleteHeld(id: number) {
+  const d = await db();
+  await d.runAsync("DELETE FROM held_carts WHERE id = ?", [id]);
 }
 
 // ---------- the queue of bills waiting to upload ----------

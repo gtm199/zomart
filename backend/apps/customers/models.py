@@ -9,6 +9,8 @@ class Customer(models.Model):
     phone = models.CharField(max_length=15, blank=True)
     whatsapp_number = models.CharField(max_length=15, blank=True)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Positive = customer owes the shop")
+    credit_limit = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+                                       help_text="Most this customer may owe. Blank = no limit")
     notes = models.CharField(max_length=255, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

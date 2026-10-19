@@ -14,6 +14,7 @@ from services import billing_service, receipt_service, report_service
 
 from .models import Sale
 from .serializers import CheckoutSerializer, ReturnSerializer, SaleSerializer
+from django.db.models import Q
 
 
 class SaleViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModelMixin,
@@ -30,6 +31,9 @@ class SaleViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModelMixi
             qs = qs.filter(customer_id=p["customer"])
         if p.get("needs_review") == "true":
             qs = qs.filter(needs_review=True)
+        if p.get("search"):
+            term = p["search"].strip()
+            qs = qs.filter(Q(invoice_number__icontains=term) | Q(customer__name__icontains=term))
         day = p.get("date")
         if day:
             try:
