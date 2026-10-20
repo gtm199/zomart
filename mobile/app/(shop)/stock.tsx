@@ -1,11 +1,12 @@
 import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { FlatList, Switch, Text, View } from "react-native";
 import { Button, Card, Err, Input, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
-import { Page, ShopProduct } from "../../types";
+import { ShopProduct } from "../../types";
 
 const WARN = "#b45309";
+type PageResp = { count: number; next: string | null; results: ShopProduct[] };
 
 function expiryLine(sp: ShopProduct) {
   if (!sp.expiry_date) return null;
@@ -19,6 +20,10 @@ export default function Stock() {
   const [lowOnly, setLowOnly] = useState(false);
   const [expiringOnly, setExpiringOnly] = useState(false);
   const [items, setItems] = useState<ShopProduct[]>([]);
+  const [count, setCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [alerts, setAlerts] = useState<{ expired_count: number; expiring_soon_count: number } | null>(null);
   const [open, setOpen] = useState<number | null>(null);
   const [price, setPrice] = useState("");
@@ -26,20 +31,39 @@ export default function Stock() {
   const [expiry, setExpiry] = useState("");
   const [addQty, setAddQty] = useState("");
   const [err, setErr] = useState("");
+  const requestId = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (p: number) => {
+    const id = ++requestId.current;
+    setLoading(true);
     try {
+      const path = `/shop/products/?search=${encodeURIComponent(q)}&page=${p}${lowOnly ? "&low_stock=true" : ""}${expiringOnly ? "&expiring=true" : ""}`;
+      const r = await api<PageResp>(path);
+      if (id !== requestId.current) return; // a newer search started, ignore this late answer
+      setItems((prev) => (p === 1 ? r.results : [...prev, ...r.results]));
+      setCount(r.count);
+      setHasMore(!!r.next);
+      setPage(p);
       setErr("");
-      const path = `/shop/products/?search=${encodeURIComponent(q)}${lowOnly ? "&low_stock=true" : ""}${expiringOnly ? "&expiring=true" : ""}`;
-      setItems((await api<Page<ShopProduct>>(path)).results);
-      setAlerts(await api("/shop/products/expiry-alerts/"));
+      if (p === 1) setAlerts(await api("/shop/products/expiry-alerts/"));
     } catch (e: any) {
-      setErr(e.message);
+      if (id === requestId.current) setErr(e.message);
+    } finally {
+      if (id === requestId.current) setLoading(false);
     }
   }, [q, lowOnly, expiringOnly]);
 
-  // Reload every time this screen comes into view (e.g. after saving a purchase)
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  // Runs when the screen opens (also after saving a purchase) and when the search or switches change.
+  useFocusEffect(
+    useCallback(() => {
+      const t = setTimeout(() => load(1), 300);
+      return () => clearTimeout(t);
+    }, [load])
+  );
+
+  const loadMore = () => {
+    if (hasMore && !loading) load(page + 1);
+  };
 
   const startEdit = (sp: ShopProduct) => {
     setOpen(sp.id);
@@ -67,9 +91,11 @@ export default function Stock() {
       if (addQty) {
         await api(`/shop/products/${sp.id}/adjust-stock/`, { body: { quantity_delta: addQty, movement_type: "purchase" } });
       }
+      const fresh = await api<ShopProduct>(`/shop/products/${sp.id}/`); // refresh only this product, keep your place in the list
+      setItems((prev) => prev.map((x) => (x.id === fresh.id ? fresh : x)));
+      setAlerts(await api("/shop/products/expiry-alerts/"));
       setOpen(null);
       setAddQty("");
-      load();
     } catch (e: any) {
       setErr(e.message);
     }
@@ -94,17 +120,26 @@ export default function Stock() {
         <Switch value={expiringOnly} onValueChange={setExpiringOnly} />
         <Text> Expiring soon</Text>
       </View>
+      {count > 0 && <Muted>Showing {items.length} of {count} products</Muted>}
       <Err msg={err} />
       <FlatList
         data={items}
         keyExtractor={(i) => String(i.id)}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={loading ? <Muted>Loading...</Muted> : <Muted>No products found.</Muted>}
+        ListFooterComponent={
+          loading && items.length > 0 ? <Muted>Loading more...</Muted>
+          : hasMore ? <Button title="Load more" kind="ghost" onPress={loadMore} /> : null
+        }
         renderItem={({ item: sp }) => {
           const ex = expiryLine(sp);
           return (
             <Card>
               <Text style={{ fontWeight: "600" }}>{sp.master_product.display_name}</Text>
               <Text style={{ color: sp.is_low_stock ? colors.danger : colors.text }}>
-                Stock {sp.stock_qty}{sp.master_product.is_loose ? ` ${sp.master_product.unit}` : ""}
+                Stock {sp.stock_qty}{sp.master_product.is_loose ? ` ${sp.master_product.unit}` : ""} · Sell ₹{sp.selling_price}
                 {sp.purchase_cost !== undefined ? ` · Cost ₹${sp.purchase_cost}` : ""}
               </Text>
               {ex && <Text style={{ color: ex.color, fontWeight: sp.expiry_status === "ok" ? "400" : "700" }}>{ex.text}</Text>}

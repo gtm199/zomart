@@ -25,7 +25,7 @@ export default function Purchases() {
   const txnId = useRef(Crypto.randomUUID()); // same id on retry => server never records the purchase twice
 
   const load = useCallback(async () => {
-    try { setSuppliers((await api<Page<Supplier>>("/shop/suppliers/")).results); } catch (e: any) { setMsg(e.message); }
+    try { setSuppliers((await api<Page<Supplier>>("/shop/suppliers/?page_size=200")).results); } catch (e: any) { setMsg(e.message); }
   }, []);
   useEffect(() => { load(); }, [load]);
 

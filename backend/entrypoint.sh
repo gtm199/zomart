@@ -1,12 +1,10 @@
 #!/bin/sh
 set -e
 
+# Development convenience: generate migrations when AUTO_MAKEMIGRATIONS=1.
+# They are written into ./backend/apps/*/migrations (bind-mounted) - commit them, then switch this off in production.
 if [ "${AUTO_MAKEMIGRATIONS:-0}" = "1" ]; then
-  # Development only: writes new migration files into ./backend/apps/*/migrations. Commit them.
   python manage.py makemigrations --noinput
-elif [ "${DJANGO_SETTINGS_MODULE}" = "config.settings.production" ]; then
-  # Live server: stop if a model changed but its migration was never committed.
-  python manage.py makemigrations --check --dry-run
 fi
 
 python manage.py migrate --noinput

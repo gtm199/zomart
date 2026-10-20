@@ -29,7 +29,7 @@ export default function Customers() {
 
   const load = useCallback(async () => {
     try {
-      const path = `/shop/customers/?search=${encodeURIComponent(q)}${owingOnly ? "&owing=true" : ""}`;
+      const path = `/shop/customers/?search=${encodeURIComponent(q)}${owingOnly ? "&owing=true" : ""}&page_size=200`;
       const list = (await api<Page<Customer>>(path)).results;
       setItems(owingOnly ? [...list].sort((a, b) => Number(b.balance) - Number(a.balance)) : list);
       const map: Record<number, string> = {};
