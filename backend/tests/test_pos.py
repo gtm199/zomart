@@ -1,5 +1,6 @@
 import uuid
 from decimal import Decimal
+from django.test import override_settings
 
 from rest_framework.test import APITestCase
 
@@ -158,6 +159,7 @@ class StockAndBarcodeTests(APITestCase):
         self.assertEqual(self.c.get(f"{API}/shop/products/?low_stock=true").data["count"], 1)
 
 
+@override_settings(NEW_SHOPS_NEED_APPROVAL=False)
 class AccountAndSubscriptionTests(APITestCase):
     def test_vendor_registration_and_login(self):
         from rest_framework.test import APIClient

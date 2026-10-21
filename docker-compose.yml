@@ -31,6 +31,13 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-grocery_dev_password}
       MEDIA_ROOT: /app/media
       NEW_SHOPS_NEED_APPROVAL: ${NEW_SHOPS_NEED_APPROVAL:-0}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-1}
+      EMAIL_USE_SSL: ${EMAIL_USE_SSL:-0}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-Kirana POS <no-reply@localhost>}
     depends_on:
       db:
         condition: service_healthy

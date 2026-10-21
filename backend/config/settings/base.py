@@ -128,6 +128,7 @@ REST_FRAMEWORK = {
         "anon": _big if TESTING else "60/min",
         "user": _big if TESTING else "600/min",
         "auth": _big if TESTING else "10/min",
+        "login_user": _big if TESTING else "8/min",
     },
 }
 
@@ -138,3 +139,17 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
+# ---- email (password reset codes) ----
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+if EMAIL_HOST:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+    EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+    EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+    EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)          # usually port 465
+    EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True) and not EMAIL_USE_SSL   # usually port 587
+    EMAIL_TIMEOUT = 10
+else:
+    # Development: the email is printed in the server window instead of being sent.
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Kirana POS <no-reply@localhost>")

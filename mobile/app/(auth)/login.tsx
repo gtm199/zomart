@@ -20,11 +20,12 @@ export default function Login() {
   return (
     <Screen>
       <Text style={{ fontSize: 26, fontWeight: "700", marginTop: 60, marginBottom: 16 }}>Kirana POS</Text>
-      <Input placeholder="Username" autoCapitalize="none" value={username} onChangeText={setUsername} />
+      <Input placeholder="Username or email" autoCapitalize="none" autoCorrect={false} value={username} onChangeText={setUsername} />
       <Input placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
       <Err msg={err} />
-      <Button title={busy ? "Signing in..." : "Sign in"} onPress={submit} disabled={busy} />
-      <Link href="/(auth)/register" style={{ textAlign: "center", marginTop: 16 }}>New shop? Register here</Link>
+      <Button title={busy ? "Signing in..." : "Sign in"} onPress={submit} disabled={busy || !username || !password} />
+      <Link href="/(auth)/forgot" style={{ textAlign: "center", marginTop: 16 }}>Forgot password?</Link>
+      <Link href="/(auth)/register" style={{ textAlign: "center", marginTop: 12 }}>New shop? Register here</Link>
     </Screen>
   );
 }

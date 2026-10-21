@@ -17,7 +17,8 @@ def session_payload(user):
     return {
         "token": token.key,
         "user": {"id": user.id, "username": user.username, "full_name": user.first_name,
-                 "phone": user.phone, "is_staff": user.is_staff},
+                 "phone": user.phone, "is_staff": user.is_staff, "email": user.email,
+                 "must_change_password": user.must_change_password},
         "shops": [
             {"id": m.shop_id, "name": m.shop.name, "role": m.role, "approved": m.shop.is_approved,
              "capabilities": sorted(ROLE_CAPS[m.role])}
@@ -34,10 +35,17 @@ class VendorRegistrationSerializer(serializers.Serializer):
     shop_name = serializers.CharField(max_length=150)
     city = serializers.CharField(max_length=80, required=False, default="Etawah")
     address = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    email = serializers.EmailField(required=False, allow_blank=True, default="")
 
     def validate_username(self, value):
         if User.objects.filter(username__iexact=value).exists():
             raise serializers.ValidationError("This username is already taken.")
+        return value
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+        if value and User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("This email is already used by another account.")
         return value
 
     def validate(self, attrs):
@@ -52,6 +60,7 @@ class VendorRegistrationSerializer(serializers.Serializer):
         user = User.objects.create_user(
             username=data["username"], password=data["password"],
             first_name=data["full_name"], phone=data["phone"],
+            email=data["email"],
         )
         approved = not getattr(settings, "NEW_SHOPS_NEED_APPROVAL", False)
         shop = Shop.objects.create(name=data["shop_name"], city=data["city"], address=data["address"],
@@ -66,3 +75,20 @@ class VendorRegistrationSerializer(serializers.Serializer):
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(max_length=10)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+
+class ProfileSerializer(serializers.Serializer):
+    full_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=15, required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    current_password = serializers.CharField(write_only=True, required=False, allow_blank=True)

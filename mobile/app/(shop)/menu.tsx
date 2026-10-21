@@ -17,13 +17,14 @@ const ITEMS = [
   { title: "Staff", subtitle: "Add cashiers, switch them off", icon: "people-circle-outline", path: "/(shop)/staff", cap: "manage_members" },
   { title: "Offline & sync", subtitle: "Bills waiting to upload, bills to review", icon: "sync-outline", path: "/(shop)/sync", cap: "sell" },
   { title: "Past bills", subtitle: "Find a bill, share PDF, print", icon: "documents-outline", path: "/(shop)/bills", cap: "view_sales" },
+  { title: "My account", subtitle: "Your name, mobile and email", icon: "person-circle-outline", path: "/(shop)/account", cap: "view_shop" },
 ] as const;
 
 type Plan = { write_allowed: boolean; days_left: number | null; reminder_days: number };
 
 export default function Menu() {
   const router = useRouter();
-  const { shop, shops, can, signOut } = useSession();
+  const { shop, shops, can, signOut, session } = useSession();
   const [alerts, setAlerts] = useState<{ expired_count: number; expiring_soon_count: number } | null>(null);
   const [notices, setNotices] = useState(0);
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -62,6 +63,8 @@ export default function Menu() {
         <View style={{ height: 12 }} />
 
         <SyncBanner />
+        {shop?.role === "owner" && session && !session.user.email &&
+          card("Add your email so you can reset your password", "Tap to add it", "#b45309", "#fef3c7", () => router.push("/(shop)/account"))}
         {planWarning !== "" && card(planWarning, "Tap to renew", colors.danger, "#fee2e2", () => router.push("/(shop)/plan"))}
         {notices > 0 && card(`${notices} new notice(s) from the catalogue team`, "Tap to read", colors.danger, "#fee2e2", () => router.push("/(shop)/notifications"))}
         {expired + soon > 0 &&

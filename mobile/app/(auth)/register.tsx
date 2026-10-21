@@ -1,14 +1,14 @@
 import { Link } from "expo-router";
 import { useState } from "react";
 import { Text } from "react-native";
-import { Button, Err, Input, Screen } from "../../components/ui";
+import { Button, Err, Input, Muted, Screen } from "../../components/ui";
 import { api } from "../../services/api";
 import { useSession } from "../../store/session";
 import { Session } from "../../types";
 
 export default function Register() {
   const { signIn } = useSession();
-  const [f, setF] = useState({ shop_name: "", full_name: "", phone: "", username: "", password: "" });
+  const [f, setF] = useState({ shop_name: "", full_name: "", phone: "", email: "", username: "", password: "" });
   const [err, setErr] = useState("");
   const set = (k: string) => (v: string) => setF({ ...f, [k]: v });
   const submit = async () => {
@@ -22,6 +22,8 @@ export default function Register() {
       <Input placeholder="Shop name" value={f.shop_name} onChangeText={set("shop_name")} />
       <Input placeholder="Your name" value={f.full_name} onChangeText={set("full_name")} />
       <Input placeholder="Mobile number" keyboardType="phone-pad" value={f.phone} onChangeText={set("phone")} />
+      <Input placeholder="Email (to reset your password)" autoCapitalize="none" keyboardType="email-address" value={f.email} onChangeText={set("email")} />
+      <Muted>Add your email now. Without it, only we can reset a forgotten password.</Muted>
       <Input placeholder="Username" autoCapitalize="none" value={f.username} onChangeText={set("username")} />
       <Input placeholder="Password (min 8 characters)" secureTextEntry value={f.password} onChangeText={set("password")} />
       <Err msg={err} />

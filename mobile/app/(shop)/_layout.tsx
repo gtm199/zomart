@@ -60,6 +60,7 @@ export default function ShopTabs() {
       <Tabs.Screen name="staff" options={hidden("Staff")} />
       <Tabs.Screen name="shops" options={hidden("Switch shop")} />
       <Tabs.Screen name="bills" options={hidden("Past bills")} />
+      <Tabs.Screen name="account" options={hidden("My account")} />
     </Tabs>
   );
 }
