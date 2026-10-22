@@ -1,5 +1,6 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import { File, Paths } from "expo-file-system";
 import { api } from "./api";
 import { kvGet, kvSet } from "./localdb";
 import { fmtQty } from "./units";
@@ -92,13 +93,42 @@ export function receiptHtml(shop: ShopInfo, d: ReceiptData) {
   </body></html>`;
 }
 
-/** Makes a PDF file and opens the phone's share sheet (WhatsApp, email, save to files...). */
-export async function shareReceiptPdf(html: string) {
-  const { uri } = await Print.printToFileAsync({ html, width: 420, height: 595 });
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "Share receipt", UTI: "com.adobe.pdf" });
+function base64ToBytes(b64: string) {
+  const bin: string = (globalThis as any).atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+/** Makes a PDF, saves it as a file the app owns under a proper name, and opens the share sheet. */
+export async function shareReceiptPdf(html: string, name = "Bill") {
+  let shareUri = "";
+  try {
+    // base64: true also gives us the PDF's content, so we can write our own copy where the app may read it
+    const { uri, base64 } = await Print.printToFileAsync({ html, width: 420, height: 595, base64: true });
+    shareUri = uri;
+    if (base64) {
+      const safe = name.replace(/[^A-Za-z0-9_-]/g, "_");
+      const file = new File(Paths.cache, `${safe}.pdf`);
+      if (file.exists) await file.delete();
+      await file.create();
+      await file.write(base64ToBytes(base64));
+      shareUri = file.uri;
+    }
+  } catch {
+    // keep whatever file we have and try that
   }
-  return uri;
+  try {
+    if (shareUri && (await Sharing.isAvailableAsync())) {
+      await Sharing.shareAsync(shareUri, { mimeType: "application/pdf", dialogTitle: "Share receipt", UTI: "com.adobe.pdf" });
+      return shareUri;
+    }
+  } catch {
+    // sharing refused the file: fall through to the print window
+  }
+  // last resort: the phone's own print window, which has "Save as PDF" and can be shared from Files
+  await Print.printAsync({ html });
+  return shareUri;
 }
 
 /** Opens the phone's print window (a normal printer or "Save as PDF"). */

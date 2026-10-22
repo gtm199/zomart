@@ -75,7 +75,8 @@ export default function Bills() {
                 {s.items.map((i) => (
                   <Text key={i.id}>{i.product_name} × {fmtQty(Number(i.quantity), i.unit)} = ₹{i.line_total}</Text>
                 ))}
-                <Button title="Share PDF" onPress={async () => shareReceiptPdf(await htmlFor(s)).catch(fail)} />
+                
+                <Button title="Share PDF" onPress={async () => shareReceiptPdf(await htmlFor(s), s.invoice_number).catch(fail)} />
                 <Button title="Print" kind="ghost" onPress={async () => printReceipt(await htmlFor(s)).catch(fail)} />
                 <Input placeholder="WhatsApp number (blank = customer's number)" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
                 <Button title="Send on WhatsApp" kind="ghost" onPress={() => sendWhatsApp(s)} />

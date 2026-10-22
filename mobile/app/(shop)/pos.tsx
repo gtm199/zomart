@@ -229,7 +229,7 @@ export default function Pos() {
         text: "PDF",
         onPress: async () => {
           const info = await getShopInfo(shop?.name ?? "Shop");
-          shareReceiptPdf(receiptHtml(info, pdfData)).catch((e) => Alert.alert("Could not make the PDF", String(e?.message ?? e)));
+          shareReceiptPdf(receiptHtml(info, pdfData), ref).catch((e) => Alert.alert("Could not make the PDF", String(e?.message ?? e)));
         },
       },
     ]);
