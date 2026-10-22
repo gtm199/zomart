@@ -14,13 +14,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://kirana-api-rstp.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://kirana-api-rstp.onrender.com/api/v1"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://kirana-api-rstp.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://kirana-api-rstp.onrender.com/api/v1"
       }
     }
   },
