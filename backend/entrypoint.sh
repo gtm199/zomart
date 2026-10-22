@@ -2,7 +2,6 @@
 set -e
 
 # Development convenience: generate migrations when AUTO_MAKEMIGRATIONS=1.
-# They are written into ./backend/apps/*/migrations (bind-mounted) - commit them, then switch this off in production.
 if [ "${AUTO_MAKEMIGRATIONS:-0}" = "1" ]; then
   python manage.py makemigrations --noinput
 fi
@@ -10,12 +9,13 @@ fi
 python manage.py migrate --noinput
 python manage.py seed_plans
 
-if [ "${DJANGO_SETTINGS_MODULE}" = "config.settings.production" ]; then
-  python manage.py collectstatic --noinput
-fi
+# Always collect static files (cheap, and avoids a missing-manifest 500)
+python manage.py collectstatic --noinput
 
-exec "$@"
-
+# Create the admin from env vars; does nothing if it already exists
 if [ -n "${DJANGO_SUPERUSER_USERNAME:-}" ]; then
-  python manage.py createsuperuser --noinput || true   # does nothing if the admin already exists
+  python manage.py createsuperuser --noinput || true
 fi
+
+# Must be last: hands the process over to the server command
+exec "$@"
