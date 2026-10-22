@@ -5,6 +5,7 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from django.urls import re_path
 from django.views.static import serve
+from core.health import health
 
 api_v1 = [
     path("auth/", include("apps.accounts.urls")),
@@ -16,6 +17,7 @@ api_v1 = [
     path("", include("apps.suppliers.urls")),
     path("", include("apps.purchases.urls")),
     path("", include("apps.expenses.urls")),
+    path("health/", health, name="health"),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]
