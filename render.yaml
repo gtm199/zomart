@@ -16,7 +16,8 @@ services:
     plan: free                 # use "free" only for a short test: free services are deleted after 30 days
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    dockerCommand: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60
+    dockerCommand: sh ./entrypoint.sh gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60
+    #dockerCommand: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60
     healthCheckPath: /api/v1/health/
     #disk:                    # remove this block for a free test (free services cannot have a disk)
      # name: media
