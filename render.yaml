@@ -36,7 +36,7 @@ services:
       - key: AUTO_MAKEMIGRATIONS
         value: "0"
      # - key: MEDIA_ROOT        # remove this line too for a free test
-        value: /var/data/media
+     #   value: /var/data/media
       - key: NEW_SHOPS_NEED_APPROVAL
         value: "0"
       - key: POSTGRES_HOST
