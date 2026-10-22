@@ -35,3 +35,6 @@ LOGGING = {
         "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
     },
 }
+
+# added last (removed optional)
+WHITENOISE_MANIFEST_STRICT = False
