@@ -1,24 +1,45 @@
 {
   "expo": {
-    "name": "Kirana POS",
-    "slug": "kirana-pos",
-    "scheme": "kiranapos",
+    "name": "Zomartt",
+    "slug": "zomartt",
+    "scheme": "zomartt",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#AE3F8E"
+    },
     "plugins": [
       "expo-router",
       "expo-secure-store",
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Kirana POS to use the camera to scan product barcodes."
+          "cameraPermission": "Allow Zomartt to use the camera to scan product barcodes."
         }
       ],
       "expo-sqlite",
       "expo-sharing"
     ],
     "android": {
-      "package": "com.example.kiranapos"
+      "package": "com.zomartt.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundImage": "./assets/adaptive-background.png",
+        "backgroundColor": "#AE3F8E"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bfe11d1e-e920-4825-b014-0aad431a515a"
+      }
     }
   }
 }
