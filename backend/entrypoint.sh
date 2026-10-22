@@ -15,3 +15,7 @@ if [ "${DJANGO_SETTINGS_MODULE}" = "config.settings.production" ]; then
 fi
 
 exec "$@"
+
+if [ -n "${DJANGO_SUPERUSER_USERNAME:-}" ]; then
+  python manage.py createsuperuser --noinput || true   # does nothing if the admin already exists
+fi

@@ -1,0 +1,80 @@
+# Paid setup: always-on server, a real database and a small disk for uploaded images.
+databases:
+  - name: kirana-db
+    #plan: basic-256mb        # use "free" only for a short test: free databases are deleted after 30 days
+    plan: free                 # use "free" only for a short test: free databases are deleted after 30 days
+    region: singapore        # the closest Render region to India
+    databaseName: grocery_saas
+    user: grocery
+
+services:
+  - type: web
+    name: kirana-api
+    runtime: docker
+    region: singapore
+    #plan: starter            # use "free" only for a test: it sleeps when idle
+    plan: free                 # use "free" only for a short test: free services are deleted after 30 days
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60
+    healthCheckPath: /api/v1/health/
+    #disk:                    # remove this block for a free test (free services cannot have a disk)
+     # name: media
+     # mountPath: /var/data
+     # sizeGB: 1
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_SECURE_SSL
+        value: "1"
+      - key: DJANGO_HSTS_SECONDS
+        value: "300"
+      - key: AUTO_MAKEMIGRATIONS
+        value: "0"
+     # - key: MEDIA_ROOT        # remove this line too for a free test
+        value: /var/data/media
+      - key: NEW_SHOPS_NEED_APPROVAL
+        value: "0"
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: kirana-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: kirana-db
+          property: port
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: kirana-db
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: kirana-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: kirana-db
+          property: password
+      # Render asks you for these when you create the Blueprint (they are not stored in the file):
+      - key: DJANGO_SUPERUSER_USERNAME
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
