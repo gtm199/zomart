@@ -3,7 +3,7 @@ export type Session = { token: string; user: { id: number; username: string; ful
 export type Master = {
   id: number; display_name: string; name: string; brand_name: string; mrp: string | null;
   tax_rate: string | null; barcodes: string[]; my_listing_id: number | null; 
-  unit: string; is_loose: boolean;
+  unit: string; is_loose: boolean; category?: number | null; category_name?: string;
 };
 export type ShopProduct = {
   id: number; master_product: Master; selling_price: string; purchase_cost?: string;

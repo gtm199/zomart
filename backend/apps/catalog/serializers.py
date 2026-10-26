@@ -8,10 +8,11 @@ from .models import Brand, Category, MasterProduct, ProductBarcode, ProductSugge
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    product_count = serializers.IntegerField(read_only=True, default=0)
+
     class Meta:
         model = Category
-        fields = ["id", "name", "parent", "sort_order"]
-
+        fields = ["id", "name", "parent", "sort_order", "product_count"]
 
 class BrandSerializer(serializers.ModelSerializer):
     class Meta:

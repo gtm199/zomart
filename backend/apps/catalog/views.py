@@ -15,9 +15,10 @@ from .serializers import (BrandSerializer, CategorySerializer, MasterProductAdmi
                           MasterProductSerializer, ProductBarcodeSerializer,
                           ProductSuggestionAdminSerializer, ProductSuggestionSerializer)
 
-
 class CategoryListView(ListAPIView):
-    queryset = Category.objects.all()
+    # product_count = active products placed directly in this category
+    queryset = Category.objects.annotate(
+        product_count=Count("products", filter=Q(products__status=MasterProduct.Status.ACTIVE)))
     serializer_class = CategorySerializer
     pagination_class = None
 
