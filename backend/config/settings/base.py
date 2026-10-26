@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "drf_spectacular",
+    "anymail",
     "apps.accounts",
     "apps.shops",
     "apps.subscriptions",
@@ -140,8 +141,17 @@ SPECTACULAR_SETTINGS = {
 }
 
 # ---- email (password reset codes) ----
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
-if EMAIL_HOST:
+
+if BREVO_API_KEY:
+    # Brevo over HTTPS (port 443). Works on Render's free plan, where SMTP ports are blocked.
+    EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+    ANYMAIL = {
+        "BREVO_API_KEY": BREVO_API_KEY,
+        "REQUESTS_TIMEOUT": 10,
+    }
+elif EMAIL_HOST:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
     EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
@@ -152,4 +162,5 @@ if EMAIL_HOST:
 else:
     # Development: the email is printed in the server window instead of being sent.
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Kirana POS <no-reply@localhost>")
+
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Zomartt <no-reply@localhost>")
