@@ -6,13 +6,20 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/bfe11d1e-e920-4825-b014-0aad431a515a"
+    },
     "plugins": [
       "expo-router",
       "expo-secure-store",
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Zomartt to use the camera to scan product barcodes."
+          "cameraPermission": "Allow Zomartt to use the camera to scan product barcodes.",
+          "recordAudioAndroid": false
         }
       ],
       "expo-sqlite",
@@ -21,9 +28,9 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash.png",
-          "backgroundColor": "#ffffff",
-        "resizeMode": "contain"
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#86498E",
+          "resizeMode": "contain"
         }
       ]
     ],
@@ -32,12 +39,9 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundImage": "./assets/adaptive-background.png",
-        "backgroundColor": "#AE3F8E"
-      },
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ]
+        "monochromeImage": "./assets/adaptive-monochrome.png",
+        "backgroundColor": "#86498E"
+      }
     },
     "extra": {
       "router": {},
