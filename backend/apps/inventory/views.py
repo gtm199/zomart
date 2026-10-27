@@ -1,9 +1,9 @@
-from django.db.models import F, Q
+from django.db.models import Count, F, Q
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.catalog.models import MasterProduct
+from apps.catalog.models import Category, MasterProduct
 from apps.shops.roles import Cap
 from core.tenancy import ShopScopedMixin
 from services import barcode_service, inventory_service
@@ -25,7 +25,7 @@ class ShopProductViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListMo
         "list": Cap.VIEW_PRODUCTS, "retrieve": Cap.VIEW_PRODUCTS, "by_barcode": Cap.VIEW_PRODUCTS,
         "movements": Cap.VIEW_PRODUCTS, "create": Cap.MANAGE_PRODUCTS,
         "partial_update": Cap.MANAGE_PRODUCTS, "adjust_stock": Cap.MANAGE_PRODUCTS, 
-        "expiry_alerts": Cap.VIEW_PRODUCTS,
+        "expiry_alerts": Cap.VIEW_PRODUCTS, "categories": Cap.VIEW_PRODUCTS,
     }
 
     def get_serializer_class(self):
@@ -55,6 +55,14 @@ class ShopProductViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListMo
         if p.get("expiring") == "true":
             limit = timezone.localdate() + timedelta(days=EXPIRY_ALERT_DAYS)
             qs = qs.filter(stock_qty__gt=0, expiry_date__isnull=False, expiry_date__lte=limit).order_by("expiry_date")
+
+        # Filter by category (main or sub-category)
+        cat = p.get("category")
+        if cat == "0":
+            qs = qs.filter(master_product__category__isnull=True)  # products with no category
+        elif cat and cat.isdigit():
+            # a main category includes the products of its sub-categories
+            qs = qs.filter(Q(master_product__category_id=cat) | Q(master_product__category__parent_id=cat))   
         
         return qs
 
@@ -120,3 +128,16 @@ class ShopProductViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListMo
             "expired": ShopProductSerializer(expired[:50], many=True, context=ctx).data,
             "expiring_soon": ShopProductSerializer(soon[:50], many=True, context=ctx).data,
         })
+
+    # an action to get the categories of this shop's own products, with how many products are in each category
+    @action(detail=False)
+    def categories(self, request):
+        """Categories of this shop's own products, with how many products are in each."""
+        base = ShopProduct.objects.filter(shop=request.shop)
+        counts = dict(base.values_list("master_product__category").annotate(n=Count("id")))
+        rows = [{"id": c.id, "name": c.name, "parent": c.parent_id, "sort_order": c.sort_order,
+                 "product_count": counts.get(c.id, 0)} for c in Category.objects.all()]
+        if counts.get(None):
+            rows.append({"id": 0, "name": "No category", "parent": None, "sort_order": 9999,
+                         "product_count": counts[None]})
+        return Response(rows)

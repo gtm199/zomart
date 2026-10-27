@@ -1,6 +1,7 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { FlatList, Switch, Text, View } from "react-native";
+import CategoryChips, { Category } from "../../components/CategoryChips";
 import { Button, Card, Err, Input, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
 import { ShopProduct } from "../../types";
@@ -19,6 +20,9 @@ export default function Stock() {
   const [q, setQ] = useState("");
   const [lowOnly, setLowOnly] = useState(false);
   const [expiringOnly, setExpiringOnly] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [top, setTop] = useState<number | null>(null);   // chosen main category
+  const [sub, setSub] = useState<number | null>(null);   // chosen sub-category
   const [items, setItems] = useState<ShopProduct[]>([]);
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -33,11 +37,13 @@ export default function Stock() {
   const [err, setErr] = useState("");
   const requestId = useRef(0);
 
+  const catId = sub ?? top; // 0 means "No category"
+
   const load = useCallback(async (p: number) => {
     const id = ++requestId.current;
     setLoading(true);
     try {
-      const path = `/shop/products/?search=${encodeURIComponent(q)}&page=${p}${lowOnly ? "&low_stock=true" : ""}${expiringOnly ? "&expiring=true" : ""}`;
+      const path = `/shop/products/?search=${encodeURIComponent(q)}&page=${p}${lowOnly ? "&low_stock=true" : ""}${expiringOnly ? "&expiring=true" : ""}${catId !== null ? `&category=${catId}` : ""}`;
       const r = await api<PageResp>(path);
       if (id !== requestId.current) return; // a newer search started, ignore this late answer
       setItems((prev) => (p === 1 ? r.results : [...prev, ...r.results]));
@@ -51,9 +57,16 @@ export default function Stock() {
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, [q, lowOnly, expiringOnly]);
+  }, [q, lowOnly, expiringOnly, catId]);
 
-  // Runs when the screen opens (also after saving a purchase) and when the search or switches change.
+  // Categories of my own products (reloaded whenever the screen comes into view).
+  useFocusEffect(
+    useCallback(() => {
+      api<Category[]>("/shop/products/categories/").then(setCategories).catch(() => {});
+    }, [])
+  );
+
+  // Runs when the screen opens (also after saving a purchase) and when the search, switches or category change.
   useFocusEffect(
     useCallback(() => {
       const t = setTimeout(() => load(1), 300);
@@ -64,6 +77,8 @@ export default function Stock() {
   const loadMore = () => {
     if (hasMore && !loading) load(page + 1);
   };
+
+  const chooseTop = (id: number | null) => { setTop(id); setSub(null); };
 
   const startEdit = (sp: ShopProduct) => {
     setOpen(sp.id);
@@ -102,10 +117,12 @@ export default function Stock() {
   };
 
   const alertCount = (alerts?.expired_count ?? 0) + (alerts?.expiring_soon_count ?? 0);
+  const chosenName = categories.find((c) => c.id === catId)?.name;
 
   return (
     <Screen>
       <Input placeholder="Search my products" value={q} onChangeText={setQ} />
+      <CategoryChips categories={categories} top={top} sub={sub} onTop={chooseTop} onSub={setSub} />
       {alertCount > 0 && (
         <Card>
           <Text style={{ color: (alerts?.expired_count ?? 0) > 0 ? colors.danger : WARN, fontWeight: "700" }}>
@@ -120,7 +137,7 @@ export default function Stock() {
         <Switch value={expiringOnly} onValueChange={setExpiringOnly} />
         <Text> Expiring soon</Text>
       </View>
-      {count > 0 && <Muted>Showing {items.length} of {count} products</Muted>}
+      {count > 0 && <Muted>{chosenName ? `${chosenName}: ` : ""}showing {items.length} of {count} products</Muted>}
       <Err msg={err} />
       <FlatList
         data={items}
@@ -138,6 +155,7 @@ export default function Stock() {
           return (
             <Card>
               <Text style={{ fontWeight: "600" }}>{sp.master_product.display_name}</Text>
+              {sp.master_product.category_name ? <Muted>{sp.master_product.category_name}</Muted> : null}
               <Text style={{ color: sp.is_low_stock ? colors.danger : colors.text }}>
                 Stock {sp.stock_qty}{sp.master_product.is_loose ? ` ${sp.master_product.unit}` : ""} · Sell ₹{sp.selling_price}
                 {sp.purchase_cost !== undefined ? ` · Cost ₹${sp.purchase_cost}` : ""}
