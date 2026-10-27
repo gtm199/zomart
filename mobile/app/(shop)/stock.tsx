@@ -140,6 +140,7 @@ export default function Stock() {
       {count > 0 && <Muted>{chosenName ? `${chosenName}: ` : ""}showing {items.length} of {count} products</Muted>}
       <Err msg={err} />
       <FlatList
+        style={{ flex: 1 }}
         data={items}
         keyExtractor={(i) => String(i.id)}
         onEndReached={loadMore}

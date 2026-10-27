@@ -1,26 +1,12 @@
 import { useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, ScrollView, Text } from "react-native";
-import { Button, Card, Err, Input, Muted, Screen, colors } from "../../components/ui";
+import { useCallback, useRef, useState } from "react";
+import { FlatList, Text } from "react-native";
+import CategoryChips, { Category } from "../../components/CategoryChips";
+import { Button, Card, Err, Input, Muted, Screen } from "../../components/ui";
 import { api } from "../../services/api";
 import { Master } from "../../types";
 
 type PageResp = { count: number; next: string | null; results: Master[] };
-type Category = { id: number; name: string; parent: number | null; sort_order: number; product_count: number };
-
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        paddingVertical: 8, paddingHorizontal: 14, borderRadius: 18, marginRight: 8, borderWidth: 1,
-        borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : "#fff",
-      }}
-    >
-      <Text style={{ color: active ? "#fff" : colors.text, fontWeight: active ? "700" : "400" }}>{label}</Text>
-    </Pressable>
-  );
-}
 
 export default function Catalogue() {
   const [q, setQ] = useState("");
@@ -41,19 +27,12 @@ export default function Catalogue() {
 
   const catId = sub ?? top;
 
-  // ----- categories -----
-  const childrenOf = useCallback((id: number) => categories.filter((c) => c.parent === id), [categories]);
-  const total = useCallback((c: Category) => c.product_count + childrenOf(c.id).reduce((a, k) => a + k.product_count, 0), [childrenOf]);
-  const tops = useMemo(() => categories.filter((c) => c.parent === null && total(c) > 0), [categories, total]);
-  const subs = useMemo(() => (top ? childrenOf(top).filter((c) => c.product_count > 0) : []), [top, childrenOf]);
-
   useFocusEffect(
     useCallback(() => {
       api<Category[]>("/catalog/categories/").then(setCategories).catch(() => {});
     }, [])
   );
 
-  // ----- products -----
   const load = useCallback(async (p: number, term: string, cat: number | null) => {
     const id = ++requestId.current;
     setLoading(true);
@@ -110,27 +89,11 @@ export default function Catalogue() {
   return (
     <Screen>
       <Input placeholder="Search central catalogue" value={q} onChangeText={setQ} />
-
-      {tops.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginVertical: 4 }}>
-          <Chip label="All" active={top === null} onPress={() => chooseTop(null)} />
-          {tops.map((c) => (
-            <Chip key={c.id} label={`${c.name} (${total(c)})`} active={top === c.id} onPress={() => chooseTop(c.id)} />
-          ))}
-        </ScrollView>
-      )}
-      {subs.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 4 }}>
-          <Chip label="All in this group" active={sub === null} onPress={() => setSub(null)} />
-          {subs.map((c) => (
-            <Chip key={c.id} label={`${c.name} (${c.product_count})`} active={sub === c.id} onPress={() => setSub(c.id)} />
-          ))}
-        </ScrollView>
-      )}
-
+      <CategoryChips categories={categories} top={top} sub={sub} onTop={chooseTop} onSub={setSub} />
       {count > 0 && <Muted>{chosenName ? `${chosenName}: ` : ""}showing {items.length} of {count} products</Muted>}
       <Err msg={err} />
       <FlatList
+        style={{ flex: 1 }}
         data={items}
         keyExtractor={(m) => String(m.id)}
         onEndReached={loadMore}
