@@ -56,6 +56,7 @@ export default function Pos() {
   const [wMode, setWMode] = useState<"weight" | "amount">("weight");
   const [wUnit, setWUnit] = useState("kg");
   const [wValue, setWValue] = useState("");
+  const [lastCode, setLastCode] = useState("");
   const lastScan = useRef(0);
   const txnId = useRef(Crypto.randomUUID()); // saved with the bill: the server never bills the same one twice
 
@@ -106,6 +107,7 @@ export default function Pos() {
   const onScan = async ({ data }: { data: string }) => {
     if (Date.now() - lastScan.current < 1500) return;
     lastScan.current = Date.now();
+    setLastCode(data);
     setErr("");
     const local = await findByBarcode(data);
     if (local) { pick(local); return; }
@@ -263,8 +265,23 @@ export default function Pos() {
               barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e", "code128"] }} />
           </View>
         ) : null}
-        <Button title={scanning ? "Stop scanner" : "Scan barcode"} kind="ghost"
-          onPress={async () => { if (!perm?.granted) await requestPerm(); setScanning((s) => !s); }} />
+        <Button
+          title={scanning ? "Stop scanner" : "Scan barcode"}
+          kind="ghost"
+          onPress={async () => {
+            if (scanning) { setScanning(false); return; }
+            let p = perm;
+            if (!p?.granted) p = await requestPerm();
+            if (p?.granted) { setLastCode(""); setScanning(true); }
+            else {
+              Alert.alert("Camera permission needed", "Allow the camera for this app in your phone settings to scan barcodes.", [
+                { text: "Cancel" },
+                { text: "Open settings", onPress: () => Linking.openSettings() },
+              ]);
+            }
+          }}
+        />
+        {scanning && <Muted>{lastCode ? `Last scanned: ${lastCode}` : "Point the camera at a barcode"}</Muted>}
         <Input placeholder="Or search product by name" value={search} onChangeText={doSearch} />
         {results.map((p) => (
           <Card key={p.id}>

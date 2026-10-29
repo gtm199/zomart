@@ -22,6 +22,7 @@
           "recordAudioAndroid": false
         }
       ],
+      ["expo-build-properties", { "android": { "enableMinifyInReleaseBuilds": false } }],
       "expo-sqlite",
       "expo-sharing",
       "expo-font",
