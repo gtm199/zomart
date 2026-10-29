@@ -15,11 +15,22 @@ function BackToMenu() {
   );
 }
 
-const hidden = (title: string) => ({ href: null, title, headerLeft: () => <BackToMenu /> });
+// SDK 58: href: null makes a screen unreachable. Hiding only the button keeps the screen open-able.
+const hidden = (title: string) => ({
+  title,
+  tabBarItemStyle: { display: "none" as const },
+  headerLeft: () => <BackToMenu />,
+});
 const icon = (name: any) => ({ color, size }: { color: string; size: number }) => <Ionicons name={name} size={size} color={color} />;
 
 export default function ShopTabs() {
   const { shop, refresh, signOut } = useSession();
+
+  /* ADD THIS: temporary test
+  useEffect(() => {
+    console.log("TABS MOUNT");
+    return () => console.log("TABS UNMOUNT");
+  }, []); */
 
   useEffect(() => {
     if (!shop?.approved) return;
