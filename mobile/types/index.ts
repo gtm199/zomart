@@ -9,6 +9,7 @@ export type ShopProduct = {
   id: number; master_product: Master; selling_price: string; purchase_cost?: string;
   stock_qty: string; low_stock_threshold: string; is_enabled: boolean; is_low_stock: boolean; master_active: boolean;
   expiry_date: string | null; days_to_expiry: number | null; expiry_status: "expired" | "expiring_soon" | "ok" | null;
+  online_visible?: boolean;
 };
 
 export type Customer = { id: number; name: string; phone: string; whatsapp_number: string; balance: string; credit_limit: string | null };

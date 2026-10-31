@@ -35,6 +35,7 @@ export default function Stock() {
   const [expiry, setExpiry] = useState("");
   const [addQty, setAddQty] = useState("");
   const [err, setErr] = useState("");
+  const [online, setOnline] = useState(true);
   const requestId = useRef(0);
 
   const catId = sub ?? top; // 0 means "No category"
@@ -85,6 +86,7 @@ export default function Stock() {
     setPrice(sp.selling_price);
     setCost(sp.purchase_cost ?? "");
     setExpiry(sp.expiry_date ?? "");
+    setOnline(sp.online_visible !== false);
     setAddQty("");
     setErr("");
   };
@@ -96,10 +98,12 @@ export default function Stock() {
       return;
     }
     try {
-      const body: Record<string, string | null> = {};
+      //const body: Record<string, string | null> = {};
+      const body: Record<string, string | boolean | null> = {};
       if (price && price !== sp.selling_price) body.selling_price = price;
       if (sp.purchase_cost !== undefined && cost && cost !== sp.purchase_cost) body.purchase_cost = cost;
       if (expiry !== (sp.expiry_date ?? "")) body.expiry_date = expiry === "" ? null : expiry;
+      if (online !== (sp.online_visible !== false)) body.online_visible = online;
       if (Object.keys(body).length > 0) {
         await api(`/shop/products/${sp.id}/`, { method: "PATCH", body });
       }
@@ -175,6 +179,10 @@ export default function Stock() {
                   )}
                   <Muted>Expiry date of the stock in hand (YYYY-MM-DD, blank = none)</Muted>
                   <Input placeholder="2027-03-31" value={expiry} onChangeText={setExpiry} />
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    <Text>Show in the customer ordering app</Text>
+                    <Switch value={online} onValueChange={setOnline} />
+                  </View>
                   <Muted>Stock received (+)</Muted>
                   <Input placeholder="0" keyboardType="decimal-pad" value={addQty} onChangeText={setAddQty} />
                   <Button title="Save" onPress={() => save(sp)} />

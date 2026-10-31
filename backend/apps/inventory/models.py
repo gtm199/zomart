@@ -17,6 +17,7 @@ class ShopProduct(models.Model):
     stock_qty = models.DecimalField(max_digits=12, decimal_places=3, default=0)  # changed only via inventory_service
     low_stock_threshold = models.DecimalField(max_digits=12, decimal_places=3, default=0)
     is_enabled = models.BooleanField(default=True)
+    online_visible = models.BooleanField(default=True)  # shown in the customer ordering app
     expiry_date = models.DateField(null=True, blank=True, help_text="Earliest expiry date of the stock in hand")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

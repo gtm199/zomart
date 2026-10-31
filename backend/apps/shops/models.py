@@ -13,6 +13,17 @@ class Shop(models.Model):
     is_active = models.BooleanField(default=True)
     allow_negative_stock = models.BooleanField(default=False)
     invoice_counter = models.PositiveIntegerField(default=0)
+    #new fields
+    store_enabled = models.BooleanField(default=False)
+    store_code = models.CharField(max_length=12, blank=True)   # customers type this to find the shop
+    accepts_delivery = models.BooleanField(default=True)
+    accepts_pickup = models.BooleanField(default=True)
+    delivery_fee = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    free_delivery_above = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    min_order = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    store_note = models.CharField(max_length=255, blank=True)  # hours, delivery area
+    order_counter = models.PositiveIntegerField(default=0)
+
     is_approved = models.BooleanField(default=True)
     payment_code = models.CharField(max_length=20, blank=True)  # the shop writes this in the UPI note
     pay_paise = models.PositiveSmallIntegerField(default=0)     # extra paise added to this shop's amount
@@ -21,7 +32,10 @@ class Shop(models.Model):
     def __str__(self):
         return self.name
 
-
+    class Meta:
+            constraints = [models.UniqueConstraint(fields=["store_code"], condition=~models.Q(store_code=""),
+                                                   name="uniq_shop_store_code")]
+            
 class ShopMembership(models.Model):
     class Role(models.TextChoices):
         OWNER = "owner"

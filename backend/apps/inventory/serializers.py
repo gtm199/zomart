@@ -22,7 +22,7 @@ class ShopProductSerializer(serializers.ModelSerializer):
         model = ShopProduct
         fields = ["id", "master_product", "selling_price", "purchase_cost", "stock_qty", "low_stock_threshold",
                   "is_enabled", "is_low_stock", "master_active", "expiry_date", "days_to_expiry",
-                  "expiry_status", "updated_at"]
+                  "expiry_status", "online_visible", "updated_at"]
 
     def get_is_low_stock(self, obj):
         return obj.low_stock_threshold > 0 and obj.stock_qty <= obj.low_stock_threshold
@@ -68,7 +68,7 @@ class ShopProductCreateSerializer(serializers.Serializer):
 class ShopProductUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShopProduct
-        fields = ["selling_price", "purchase_cost", "low_stock_threshold", "is_enabled", "expiry_date"]
+        fields = ["selling_price", "purchase_cost", "low_stock_threshold", "is_enabled", "expiry_date", "online_visible"]
         extra_kwargs = {"selling_price": {"min_value": Decimal("0")}, "purchase_cost": {"min_value": Decimal("0")}}
 
 

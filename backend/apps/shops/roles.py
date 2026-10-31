@@ -13,6 +13,7 @@ class Cap:
     VIEW_REPORTS = "view_reports"
     VIEW_PURCHASES = "view_purchases"
     MANAGE_PURCHASES = "manage_purchases"
+    MANAGE_ORDERS = "manage_orders"
 
 
 ALL_CAPS = {v for k, v in vars(Cap).items() if not k.startswith("_")}
@@ -20,7 +21,7 @@ ALL_CAPS = {v for k, v in vars(Cap).items() if not k.startswith("_")}
 ROLE_CAPS = {
     "owner": set(ALL_CAPS),
     "manager": ALL_CAPS - {Cap.MANAGE_MEMBERS},
-    "cashier": {Cap.VIEW_SHOP, Cap.VIEW_PRODUCTS, Cap.SELL, Cap.VIEW_SALES, Cap.VIEW_CUSTOMERS, Cap.MANAGE_CUSTOMERS},
+    "cashier": {Cap.VIEW_SHOP, Cap.VIEW_PRODUCTS, Cap.SELL, Cap.VIEW_SALES, Cap.VIEW_CUSTOMERS, Cap.MANAGE_CUSTOMERS, Cap.MANAGE_ORDERS},
     "inventory": {Cap.VIEW_SHOP, Cap.VIEW_PRODUCTS, Cap.MANAGE_PRODUCTS, Cap.VIEW_COST,
                   Cap.VIEW_PURCHASES, Cap.MANAGE_PURCHASES},
     "accounts": {Cap.VIEW_SHOP, Cap.VIEW_PRODUCTS, Cap.VIEW_COST, Cap.VIEW_SALES, Cap.VIEW_CUSTOMERS,
