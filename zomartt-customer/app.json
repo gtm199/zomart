@@ -26,6 +26,16 @@
     "plugins": [
       "expo-router",
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "d131ba9e-75f7-44ee-8990-68d97f2a207d"
+      }
+    }
   }
 }
