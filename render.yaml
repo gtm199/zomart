@@ -89,8 +89,11 @@ services:
     staticPublishPath: dist
     envVars:
       - key: EXPO_PUBLIC_API_URL
-        sync: false            # Render asks for it: https://kirana-api.onrender.com/api/v1
-    routes:
+        value: /api/v1             # Render asks for it: https://kirana-api-rstp.onrender.com/api/v1
+    routes: 
+      - type: rewrite
+        source: /api/*
+        destination: https://kirana-api-rstp.onrender.com/api/*
       - type: rewrite
         source: /*
         destination: /index.html
