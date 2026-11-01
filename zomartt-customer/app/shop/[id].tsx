@@ -5,8 +5,9 @@ import { Button, Card, Chip, Err, Input, Muted, Screen, colors } from "../../com
 import { api } from "../../services/api";
 import { useCart } from "../../store/cart";
 import type { Shop } from "../(tabs)/index";
+import ProductImage from "../../components/ProductImage";
 
-type Product = { id: number; name: string; category: number | null; category_name: string; unit: string; loose: boolean; selling_price: string; image: string; in_stock: boolean };
+type Product = { id: number; name: string; category: number | null; category_name: string; unit: string; loose: boolean; selling_price: string; image: string; image_full: string; in_stock: boolean };
 type Category = { id: number; name: string; parent: number | null; sort_order: number; product_count: number };
 type Page = { count: number; next: string | null; results: Product[] };
 
@@ -58,7 +59,7 @@ export default function ShopScreen() {
   const cartShop = { id: Number(id), name: shop?.name ?? "Shop" };
   const step = (p: Product) => (p.loose ? 0.25 : 1);
   const change = (p: Product, delta: number) =>
-    cart.setQty(cartShop, { id: p.id, name: p.name, price: p.selling_price, unit: p.unit, loose: p.loose }, Math.max(0, cart.qtyOf(p.id) + delta));
+    cart.setQty(cartShop, { id: p.id, name: p.name, price: p.selling_price, unit: p.unit, loose: p.loose, image: p.image }, Math.max(0, cart.qtyOf(p.id) + delta));
 
   const inBasket = cart.shop?.id === Number(id) ? cart.lines.length : 0;
 
@@ -105,15 +106,20 @@ export default function ShopScreen() {
           const n = cart.shop?.id === Number(id) ? cart.qtyOf(p.id) : 0;
           return (
             <Card>
-              <Text style={{ fontWeight: "600" }}>{p.name}</Text>
-              <Muted>{p.category_name ? `${p.category_name} · ` : ""}₹{Number(p.selling_price)}{p.loose ? ` per ${p.unit}` : ""}</Muted>
-              {!p.in_stock ? <Text style={{ color: colors.danger }}>Out of stock</Text> : n > 0 ? (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                  <Button title="−" kind="ghost" onPress={() => change(p, -step(p))} />
-                  <Text style={{ fontWeight: "700", minWidth: 70, textAlign: "center" }}>{qtyText(n, p.loose ? p.unit : "pc")}</Text>
-                  <Button title="+" kind="ghost" onPress={() => change(p, step(p))} />
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <ProductImage uri={p.image} fullUri={p.image_full} name={p.name} size={84} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "600" }}>{p.name}</Text>
+                  <Muted>{p.category_name ? `${p.category_name} · ` : ""}₹{Number(p.selling_price)}{p.loose ? ` per ${p.unit}` : ""}</Muted>
+                  {!p.in_stock ? <Text style={{ color: colors.danger }}>Out of stock</Text> : n > 0 ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Button title="−" kind="ghost" onPress={() => change(p, -step(p))} />
+                      <Text style={{ fontWeight: "700", minWidth: 60, textAlign: "center" }}>{qtyText(n, p.loose ? p.unit : "pc")}</Text>
+                      <Button title="+" kind="ghost" onPress={() => change(p, step(p))} />
+                    </View>
+                  ) : <Button title={p.loose ? "Add 250 g / 250 ml" : "Add"} kind="ghost" onPress={() => change(p, step(p))} />}
                 </View>
-              ) : <Button title={p.loose ? "Add 250 g / 250 ml" : "Add"} kind="ghost" onPress={() => change(p, step(p))} />}
+              </View>
             </Card>
           );
         }}

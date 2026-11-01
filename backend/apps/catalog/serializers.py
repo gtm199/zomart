@@ -31,7 +31,7 @@ class MasterProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = MasterProduct
         fields = ["id", "display_name", "name", "brand_name", "category", "category_name", "pack_size", "unit",
-                  "description", "image", "mrp", "tax_rate", "is_loose", "status", "barcodes", "my_listing_id"]
+                  "description", "image", "thumbnail", "mrp", "tax_rate", "is_loose", "status", "barcodes", "my_listing_id"]
 
     def get_my_listing_id(self, obj):
         return self.context.get("listing_map", {}).get(obj.id)

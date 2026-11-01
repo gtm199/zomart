@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { FlatList, Text, View } from "react-native";
 import { Button, Card, Muted, Screen } from "../../components/ui";
 import { lineCents, useCart } from "../../store/cart";
+import ProductImage from "../../components/ProductImage";
 
 export default function Cart() {
   const router = useRouter();
@@ -19,7 +20,10 @@ export default function Cart() {
         keyExtractor={(l) => String(l.id)}
         renderItem={({ item: l }) => (
           <Card>
-            <Text style={{ fontWeight: "600" }}>{l.name}</Text>
+            <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+              <ProductImage uri={l.image} name={l.name} size={48} />
+              <Text style={{ fontWeight: "600", flex: 1 }}>{l.name}</Text>
+            </View>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
               <Muted>₹{Number(l.price)} × {l.qty}{l.loose ? ` ${l.unit}` : ""} = ₹{(lineCents(l.price, l.qty) / 100).toFixed(2)}</Muted>
               <View style={{ flexDirection: "row", gap: 8 }}>

@@ -5,6 +5,7 @@ import CategoryChips, { Category } from "../../components/CategoryChips";
 import { Button, Card, Err, Input, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
 import { ShopProduct } from "../../types";
+import ProductImage from "../../components/ProductImage";
 
 const WARN = "#b45309";
 type PageResp = { count: number; next: string | null; results: ShopProduct[] };
@@ -159,12 +160,17 @@ export default function Stock() {
           const ex = expiryLine(sp);
           return (
             <Card>
-              <Text style={{ fontWeight: "600" }}>{sp.master_product.display_name}</Text>
-              {sp.master_product.category_name ? <Muted>{sp.master_product.category_name}</Muted> : null}
-              <Text style={{ color: sp.is_low_stock ? colors.danger : colors.text }}>
-                Stock {sp.stock_qty}{sp.master_product.is_loose ? ` ${sp.master_product.unit}` : ""} · Sell ₹{sp.selling_price}
-                {sp.purchase_cost !== undefined ? ` · Cost ₹${sp.purchase_cost}` : ""}
-              </Text>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <ProductImage uri={sp.master_product.thumbnail || sp.master_product.image} fullUri={sp.master_product.image || sp.master_product.thumbnail} name={sp.master_product.display_name} size={64} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "600" }}>{sp.master_product.display_name}</Text>
+                  {sp.master_product.category_name ? <Muted>{sp.master_product.category_name}</Muted> : null}
+                  <Text style={{ color: sp.is_low_stock ? colors.danger : colors.text }}>
+                    Stock {sp.stock_qty}{sp.master_product.is_loose ? ` ${sp.master_product.unit}` : ""} · Sell ₹{sp.selling_price}
+                    {sp.purchase_cost !== undefined ? ` · Cost ₹${sp.purchase_cost}` : ""}
+                  </Text>
+                </View>
+              </View>
               {ex && <Text style={{ color: ex.color, fontWeight: sp.expiry_status === "ok" ? "400" : "700" }}>{ex.text}</Text>}
               {!sp.master_active && <Text style={{ color: colors.danger, fontWeight: "700" }}>Removed from catalogue: cannot be sold</Text>}
               {open === sp.id ? (

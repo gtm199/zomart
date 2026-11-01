@@ -1,10 +1,11 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { FlatList, Text } from "react-native";
+import { FlatList, Text, View } from "react-native";
 import CategoryChips, { Category } from "../../components/CategoryChips";
 import { Button, Card, Err, Input, Muted, Screen } from "../../components/ui";
 import { api } from "../../services/api";
 import { Master } from "../../types";
+import ProductImage from "../../components/ProductImage";
 
 type PageResp = { count: number; next: string | null; results: Master[] };
 
@@ -110,8 +111,13 @@ export default function Catalogue() {
         }
         renderItem={({ item: m }) => (
           <Card>
-            <Text style={{ fontWeight: "600" }}>{m.display_name}</Text>
-            <Muted>{m.category_name ? `${m.category_name} · ` : ""}MRP {m.mrp ?? "n/a"}</Muted>
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <ProductImage uri={m.thumbnail || m.image} fullUri={m.image || m.thumbnail} name={m.display_name} size={64} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: "600" }}>{m.display_name}</Text>
+                <Muted>{m.category_name ? `${m.category_name} · ` : ""}MRP {m.mrp ?? "n/a"}</Muted>
+              </View>
+            </View>
             {m.my_listing_id ? <Muted>✓ In your shop</Muted> : open === m.id ? (
               <>
                 <Input placeholder="Selling price" keyboardType="decimal-pad" value={price} onChangeText={setPrice} />

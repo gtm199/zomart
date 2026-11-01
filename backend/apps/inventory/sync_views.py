@@ -15,6 +15,10 @@ from core.tenancy import ShopAccess
 from .models import ShopProduct
 
 
+def picture(request, product):
+    f = product.thumbnail or product.image
+    return request.build_absolute_uri(f.url) if f else ""
+
 class SyncView(APIView):
     """What the phone needs for offline billing. Pass ?since=<server_time from the last call> for changes only.
     Products are never deleted (they are switched off), so changes cover everything."""
@@ -51,6 +55,7 @@ class SyncView(APIView):
                 "stock_qty": str(p.stock_qty),
                 "is_enabled": p.is_enabled and p.master_product.status == MasterProduct.Status.ACTIVE,
                 "whole": p.master_product.unit == MasterProduct.Unit.PIECE,
+                "image": picture(request, p.master_product),
                 "unit": p.master_product.unit,
                 "loose": p.master_product.is_loose,
             } for p in products],

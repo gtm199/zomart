@@ -51,19 +51,32 @@ class StoreProductSerializer(serializers.ModelSerializer):
     loose = serializers.BooleanField(source="master_product.is_loose")
     image = serializers.SerializerMethodField()
     in_stock = serializers.SerializerMethodField()
+    image_full = serializers.SerializerMethodField()
 
     class Meta:
         model = ShopProduct
-        fields = ["id", "name", "category", "category_name", "unit", "loose", "selling_price", "image", "in_stock"]
+        fields = ["id", "name", "category", "category_name", "unit", "loose", "selling_price", "image", "image_full","in_stock"]
 
     def get_category_name(self, obj):
         c = obj.master_product.category
         return c.name if c else ""
 
     def get_image(self, obj):
-        image = obj.master_product.image
+        m = obj.master_product
+        f = m.thumbnail or m.image
         request = self.context.get("request")
-        return request.build_absolute_uri(image.url) if image and request else ""
+        return request.build_absolute_uri(f.url) if f and request else ""
+
+    def get_image_full(self, obj):
+        m = obj.master_product
+        f = m.image or m.thumbnail
+        request = self.context.get("request")
+        return request.build_absolute_uri(f.url) if f and request else ""
+
+    #def get_image(self, obj):
+     #   image = obj.master_product.image
+     #  request = self.context.get("request")
+     #  return request.build_absolute_uri(image.url) if image and request else ""
 
     def get_in_stock(self, obj):
         return obj.stock_qty > 0 or obj.shop.allow_negative_stock

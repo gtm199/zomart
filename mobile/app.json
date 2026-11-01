@@ -22,7 +22,14 @@
           "recordAudioAndroid": false
         }
       ],
-      ["expo-build-properties", { "android": { "enableMinifyInReleaseBuilds": false } }],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": false
+          }
+        }
+      ],
       "expo-sqlite",
       "expo-sharing",
       "expo-font",
@@ -33,7 +40,8 @@
           "backgroundColor": "#86498E",
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-image"
     ],
     "android": {
       "package": "com.zomartt.app",

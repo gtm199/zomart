@@ -8,6 +8,7 @@ fi
 
 python manage.py migrate --noinput
 python manage.py seed_plans
+python manage.py make_thumbnails || true
 
 # Always collect static files (cheap, and avoids a missing-manifest 500)
 python manage.py collectstatic --noinput

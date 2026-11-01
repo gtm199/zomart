@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState } from "react";
 import { Alert } from "react-native";
 
-export type Line = { id: number; name: string; price: string; unit: string; loose: boolean; qty: number };
+export type Line = { id: number; name: string; price: string; unit: string; loose: boolean; image: string; qty: number };
+//export type Line = { id: number; name: string; price: string; unit: string; loose: boolean; qty: number };
 export type CartShop = { id: number; name: string };
 type Ctx = {
   shop: CartShop | null; lines: Line[]; total: number;
