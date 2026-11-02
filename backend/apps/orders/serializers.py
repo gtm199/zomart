@@ -7,7 +7,7 @@ from apps.inventory.models import ShopProduct
 from apps.shops.models import Shop
 
 from .models import Order, OrderEvent, OrderItem, Shopper
-
+from core.media import full_url, thumb_url
 
 def clean_phone(value):
     digits = re.sub(r"\D", "", value or "")
@@ -62,16 +62,10 @@ class StoreProductSerializer(serializers.ModelSerializer):
         return c.name if c else ""
 
     def get_image(self, obj):
-        m = obj.master_product
-        f = m.thumbnail or m.image
-        request = self.context.get("request")
-        return request.build_absolute_uri(f.url) if f and request else ""
+        return thumb_url(obj.master_product.image, self.context.get("request"))
 
     def get_image_full(self, obj):
-        m = obj.master_product
-        f = m.image or m.thumbnail
-        request = self.context.get("request")
-        return request.build_absolute_uri(f.url) if f and request else ""
+        return full_url(obj.master_product.image, self.context.get("request"))
 
     #def get_image(self, obj):
      #   image = obj.master_product.image

@@ -13,11 +13,10 @@ from apps.shops.roles import Cap
 from core.tenancy import ShopAccess
 
 from .models import ShopProduct
-
+from core.media import thumb_url
 
 def picture(request, product):
-    f = product.thumbnail or product.image
-    return request.build_absolute_uri(f.url) if f else ""
+    return thumb_url(product.image, request)
 
 class SyncView(APIView):
     """What the phone needs for offline billing. Pass ?since=<server_time from the last call> for changes only.

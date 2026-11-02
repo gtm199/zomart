@@ -4,6 +4,7 @@ from django.db.models import Count
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils.html import format_html
+from core.media import thumb_url
 
 from services import barcode_service, catalog_import_service, catalog_service, export_service
 from services.exceptions import BusinessRuleError
@@ -84,7 +85,7 @@ class MasterProductAdmin(admin.ModelAdmin):
 
     @admin.display(description="Image")
     def thumb(self, obj):
-        return format_html('<img src="{}" style="height:36px;border-radius:4px">', obj.image.url) if obj.image else "-"
+        return format_html('<img src="{}" style="height:36px;border-radius:4px">', thumb_url(obj.image)) if obj.image else "-"
 
     @admin.display(description="Current image")
     def image_preview(self, obj):

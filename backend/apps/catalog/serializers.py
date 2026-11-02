@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from rest_framework import serializers
+from core.media import thumb_url
 
 from services import barcode_service, catalog_service
 
@@ -27,6 +28,7 @@ class MasterProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True, default="")
     barcodes = serializers.SlugRelatedField(many=True, read_only=True, slug_field="code")
     my_listing_id = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
 
     class Meta:
         model = MasterProduct
@@ -35,6 +37,9 @@ class MasterProductSerializer(serializers.ModelSerializer):
 
     def get_my_listing_id(self, obj):
         return self.context.get("listing_map", {}).get(obj.id)
+    
+    def get_thumbnail(self, obj):
+        return thumb_url(obj.image, self.context.get("request"))
 
 
 class ProductBarcodeSerializer(serializers.ModelSerializer):

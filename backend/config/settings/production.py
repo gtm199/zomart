@@ -14,8 +14,13 @@ if env_bool("DJANGO_SECURE_SSL"):  # noqa: F405
     SECURE_HSTS_SECONDS = 31536000
 
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")  # noqa: F405
+# Product pictures go to Cloudinary when CLOUDINARY_URL is set, otherwise to the server's own disk.
+_media_storage = (
+    "core.storage.CloudinaryMediaStorage" if os.environ.get("CLOUDINARY_URL")
+    else "django.core.files.storage.FileSystemStorage"
+)
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "default": {"BACKEND": _media_storage},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 

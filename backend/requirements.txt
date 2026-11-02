@@ -8,3 +8,4 @@ Pillow>=10.0
 python-dotenv>=1.0
 openpyxl>=3.1
 django-anymail[brevo]
+cloudinary>=1.40
