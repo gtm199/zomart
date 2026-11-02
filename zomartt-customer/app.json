@@ -7,16 +7,22 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d131ba9e-75f7-44ee-8990-68d97f2a207d"
+    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "package": "com.zomartt.customer",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#86498E",
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundImage": "./assets/adaptive-background.png",
+        "monochromeImage": "./assets/adaptive-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -27,7 +33,15 @@
       "expo-router",
       "expo-secure-store",
       "expo-image",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#86498E",
+          "resizeMode": "contain"
+        }
+      ]
     ],
     "extra": {
       "router": {
