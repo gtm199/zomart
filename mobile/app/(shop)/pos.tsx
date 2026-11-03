@@ -4,7 +4,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Alert, Linking, ScrollView, Text, View } from "react-native";
 import SyncBanner from "../../components/SyncBanner";
-import { Button, Card, Err, Input, Muted, Screen, colors } from "../../components/ui";
+import { Button, Card, Err, Input, KeyboardAware, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
 import {
   HeldCart, LocalCustomer, LocalProduct, deleteHeld, findByBarcode, getCustomer, getProduct, holdCart, listHeld,
@@ -60,6 +60,14 @@ export default function Pos() {
   const lastScan = useRef(0);
   const txnId = useRef(Crypto.randomUUID()); // saved with the bill: the server never bills the same one twice
 
+  const scrollRef = useRef<ScrollView>(null);
+  const [cardY, setCardY] = useState(0);              // where the bill card starts inside the scrolling area
+  const inputY = useRef<Record<string, number>>({});  // where each box sits inside the bill card
+
+  // After the keyboard has opened, scroll so the box you tapped sits just above it.
+  const revealInput = (key: string) =>
+    setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, cardY + (inputY.current[key] ?? 0) - 90), animated: true }), 350);
+  
   const trusted = shop?.role === "owner" || shop?.role === "manager";
   const totalC = cart.reduce((a, l) => a + lineCents(l.p.selling_price, l.qty), 0);
   const available = (p: LocalProduct) => Number(p.stock_qty) - p.pending_qty;
@@ -241,7 +249,8 @@ export default function Pos() {
 
   return (
     <Screen>
-      <ScrollView keyboardShouldPersistTaps="handled">
+      <KeyboardAware>
+        <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
         <SyncBanner />
 
         {held.length > 0 && (
@@ -357,9 +366,11 @@ export default function Pos() {
         ))}
 
         {cart.length > 0 && (
+          <View onLayout={(e) => setCardY(e.nativeEvent.layout.y)}>
           <Card>
             <Text style={{ fontSize: 20, fontWeight: "700" }}>Total ₹{rs(totalC)}</Text>
-            <Input placeholder={`Amount received (blank = ₹${rs(totalC)})`} keyboardType="decimal-pad" value={paid} onChangeText={setPaid} />
+            <Input placeholder={`Amount received (blank = ₹${rs(totalC)})`} keyboardType="decimal-pad" value={paid} onChangeText={setPaid}
+              onLayout={(e) => { inputY.current.paid = e.nativeEvent.layout.y; }} onFocus={() => revealInput("paid")} />
             <Muted>
               {paid !== "" && Math.round(Number(paid) * 100) < totalC
                 ? `₹${rs(totalC - Math.round(Number(paid) * 100))} will be added to the customer's dues. Select a customer below.`
@@ -370,8 +381,10 @@ export default function Pos() {
               <Button title="Cash" kind={method === "cash" ? "primary" : "ghost"} onPress={() => setMethod("cash")} />
               <Button title="UPI" kind={method === "upi" ? "primary" : "ghost"} onPress={() => setMethod("upi")} />
             </View>
-            <Input placeholder="Customer name/phone (needed for credit)" value={custQuery} onChangeText={doSearchCustomers} />
-            <Input placeholder="Customer's WhatsApp number (optional, to send the bill)" keyboardType="phone-pad" value={waPhone} onChangeText={setWaPhone} />
+            <Input placeholder="Customer name/phone (needed for credit)" value={custQuery} onChangeText={doSearchCustomers}
+              onLayout={(e) => { inputY.current.cust = e.nativeEvent.layout.y; }} onFocus={() => revealInput("cust")} />
+            <Input placeholder="Customer's WhatsApp number (optional, to send the bill)" keyboardType="phone-pad" value={waPhone} onChangeText={setWaPhone}
+              onLayout={(e) => { inputY.current.wa = e.nativeEvent.layout.y; }} onFocus={() => revealInput("wa")} />
             {customer && (
               <Text style={{ color: colors.primary }}>
                 Selected: {customer.name} · owes ₹{customer.balance}
@@ -387,9 +400,11 @@ export default function Pos() {
             <Button title="Put bill on hold" kind="ghost" onPress={holdCurrent} />
             <Button title="Clear bill" kind="ghost" onPress={clearBill} />
           </Card>
+          </View>
         )}
         {cart.length === 0 && !weighing && <Err msg={err} />}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAware>
     </Screen>
   );
 }
