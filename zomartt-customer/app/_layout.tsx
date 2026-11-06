@@ -21,6 +21,7 @@ function Guard() {
       <Stack.Screen name="shop/[id]" options={{ title: "Shop" }} />
       <Stack.Screen name="checkout" options={{ title: "Checkout" }} />
       <Stack.Screen name="order/[id]" options={{ title: "Your order" }} />
+      <Stack.Screen name="credit/[shop]" options={{ title: "My credit" }} />
     </Stack>
   );
 }

@@ -20,6 +20,7 @@ const ITEMS = [
   { title: "My account", subtitle: "Your name, mobile and email", icon: "person-circle-outline", path: "/(shop)/account", cap: "view_shop" },
   { title: "Online orders", subtitle: "Orders from your customers' app", icon: "bag-handle-outline", path: "/(shop)/orders", cap: "manage_orders" },
   { title: "Online store", subtitle: "Turn on ordering, delivery and pickup", icon: "storefront-outline", path: "/(shop)/storesettings", cap: "manage_shop" },
+  { title: "Credit requests", subtitle: "Customers asking for credit (khata)", icon: "card-outline", path: "/(shop)/creditrequests", cap: "manage_orders" },
 ] as const;
 
 type Plan = { write_allowed: boolean; days_left: number | null; reminder_days: number };
@@ -31,6 +32,7 @@ export default function Menu() {
   const [notices, setNotices] = useState(0);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [newOrders, setNewOrders] = useState(0);
+  const [pendingCredit, setPendingCredit] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -38,6 +40,7 @@ export default function Menu() {
       api<{ unread_count: number }>("/shop/notifications/").then((r) => setNotices(r.unread_count)).catch(() => {});
       if (can("view_products")) api("/shop/products/expiry-alerts/").then((r: any) => setAlerts(r)).catch(() => {});
       if (can("manage_orders")) api<{ new: number }>("/shop/orders/summary/").then((r) => setNewOrders(r.new)).catch(() => {});
+      if (can("manage_orders")) api<{ count: number }>("/shop/credit-requests/?status=requested&page_size=1").then((r) => setPendingCredit(r.count)).catch(() => {});
     }, [])
   );
 
@@ -70,6 +73,7 @@ export default function Menu() {
         {shop?.role === "owner" && session && !session.user.email &&
           card("Add your email so you can reset your password", "Tap to add it", "#b45309", "#fef3c7", () => router.push("/(shop)/account"))}
         {newOrders > 0 && card(`${newOrders} new online order(s)`, "Tap to open", colors.danger, "#fee2e2", () => router.push("/(shop)/orders"))}
+        {pendingCredit > 0 && card(`${pendingCredit} credit request(s)`, "Tap to review", "#b45309", "#fef3c7", () => router.push("/(shop)/creditrequests"))}
         {planWarning !== "" && card(planWarning, "Tap to renew", colors.danger, "#fee2e2", () => router.push("/(shop)/plan"))}
         {notices > 0 && card(`${notices} new notice(s) from the catalogue team`, "Tap to read", colors.danger, "#fee2e2", () => router.push("/(shop)/notifications"))}
         {expired + soon > 0 &&

@@ -39,7 +39,9 @@ export default function OrderDetail() {
           <Text style={{ fontWeight: "700", fontSize: 16 }}>{o.shop_name} · order #{o.number}</Text>
           <Text style={{ fontWeight: "700", color: ["cancelled", "rejected"].includes(o.status) ? colors.danger : colors.primary }}>{STATUS[o.status]}</Text>
           {o.reason ? <Text>Reason: {o.reason}</Text> : null}
-          {payNow && <Muted>Pay ₹{o.total} in {o.payment_method === "cash" ? "cash" : "UPI"} to the shop when you {o.fulfilment === "delivery" ? "receive" : "collect"} the order.</Muted>}
+          {payNow && (o.payment_method === "credit"
+            ? <Muted>On credit: ₹{o.subtotal} will be added to your account at {o.shop_name}.{o.fulfilment === "delivery" && Number(o.delivery_fee) > 0 ? ` Pay the delivery fee ₹${o.delivery_fee} when it arrives.` : ""}</Muted>
+            : <Muted>Pay ₹{o.total} in {o.payment_method === "cash" ? "cash" : "UPI"} to the shop when you {o.fulfilment === "delivery" ? "receive" : "collect"} the order.</Muted>)}
         </Card>
         <Card>
           {o.items.map((i) => (

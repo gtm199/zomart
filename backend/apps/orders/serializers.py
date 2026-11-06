@@ -6,7 +6,9 @@ from rest_framework import serializers
 from apps.inventory.models import ShopProduct
 from apps.shops.models import Shop
 
-from .models import Order, OrderEvent, OrderItem, Shopper
+from apps.customers.models import Customer, CustomerLedger
+from .models import Order, OrderEvent, OrderItem, Shopper, ShopperCredit
+
 from core.media import full_url, thumb_url
 
 def clean_phone(value):
@@ -38,7 +40,7 @@ class PublicShopSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Shop
-        fields = ["id", "name", "city", "address", "phone", "accepts_delivery", "accepts_pickup",
+        fields = ["id", "name", "city", "address", "phone", "upi_id", "accepts_delivery", "accepts_pickup",
                   "delivery_fee", "free_delivery_above", "min_order", "store_note"]
 
 
@@ -116,7 +118,7 @@ class PlaceOrderSerializer(serializers.Serializer):
     fulfilment = serializers.ChoiceField(choices=["delivery", "pickup"])
     address = serializers.CharField(max_length=300, required=False, allow_blank=True, default="")
     note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
-    payment_method = serializers.ChoiceField(choices=["cash", "upi"], default="cash")
+    payment_method = serializers.ChoiceField(choices=["cash", "upi", "credit"], default="cash")
     items = PlaceItemSerializer(many=True, allow_empty=False)
 
 
@@ -141,7 +143,7 @@ class StoreSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shop
         fields = ["store_enabled", "accepts_delivery", "accepts_pickup", "delivery_fee", "free_delivery_above",
-                  "min_order", "store_note", "store_code"]
+                  "min_order", "store_note", "upi_id", "store_code"]
         read_only_fields = ["store_code"]
 
     def validate(self, attrs):
@@ -149,3 +151,43 @@ class StoreSettingsSerializer(serializers.ModelSerializer):
         if get("store_enabled") and not (get("accepts_delivery") or get("accepts_pickup")):
             raise serializers.ValidationError("Allow delivery, pickup, or both.")
         return attrs
+
+class VendorCreditSerializer(serializers.ModelSerializer):
+    """What the shop sees about a credit request."""
+    shopper_name = serializers.CharField(source="shopper.name", read_only=True)
+    shopper_phone = serializers.CharField(source="shopper.phone", read_only=True)
+    customer = serializers.SerializerMethodField()
+    same_phone_customer = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ShopperCredit
+        fields = ["id", "status", "requested_at", "shopper_name", "shopper_phone", "customer", "same_phone_customer"]
+
+    def get_customer(self, obj):
+        c = obj.customer
+        return None if c is None else {"id": c.id, "name": c.name, "owed": str(c.balance),
+                                       "limit": None if c.credit_limit is None else str(c.credit_limit)}
+
+    def get_same_phone_customer(self, obj):
+        """An existing customer of the shop with the same number. It may or may not be the same person."""
+        if obj.customer_id:
+            return None
+        c = Customer.objects.filter(shop=obj.shop, phone=obj.shopper.phone).first()
+        return None if c is None else {"id": c.id, "name": c.name, "owed": str(c.balance)}
+
+
+class ApproveCreditSerializer(serializers.Serializer):
+    limit = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+    customer = serializers.IntegerField(required=False, allow_null=True, default=None)
+
+
+class LedgerRowSerializer(serializers.ModelSerializer):
+    """The customer sees amounts and dates, and the bill number of credit sales. Never the shop's private notes."""
+    note = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomerLedger
+        fields = ["entry_type", "amount", "balance_after", "note", "created_at"]
+
+    def get_note(self, obj):
+        return obj.note if obj.entry_type == CustomerLedger.EntryType.CREDIT_SALE else ""

@@ -7,9 +7,9 @@ from django.db import IntegrityError, transaction
 
 from apps.catalog.models import MasterProduct
 from apps.inventory.models import ShopProduct
-from apps.orders.models import Order, OrderEvent, OrderItem, ShopperShop
+from apps.orders.models import Order, OrderEvent, OrderItem, ShopperCredit, ShopperShop
 from apps.shops.models import Shop
-from services import billing_service, subscription_service
+from services import billing_service, credit_service, subscription_service
 from services.exceptions import BusinessRuleError
 from services.money import money, qty
 
@@ -113,6 +113,16 @@ def _place(shopper, shop_id, items, fulfilment, address, note, payment_method, c
     if subtotal < shop.min_order:
         raise BusinessRuleError(f"This shop's minimum order is Rs {shop.min_order}.", "below_minimum")
 
+    if payment_method == Order.Payment.CREDIT:
+        link = (ShopperCredit.objects.select_for_update(of=("self",)).select_related("customer", "shopper")
+                .filter(shopper=shopper, shop=shop, status=ShopperCredit.Status.APPROVED).first())
+        if link is None:
+            raise BusinessRuleError("This shop has not given you credit yet. Ask the shop for credit first.", "credit_not_approved")
+        available = credit_service.snapshot(link)["available"]
+        if subtotal > available:
+            raise BusinessRuleError(f"You can use Rs {available} more credit at this shop. Choose cash or UPI for the rest.",
+                                    "credit_limit_exceeded")
+        
     fee = delivery_fee_for(shop, fulfilment, subtotal)
     shop.order_counter += 1
     shop.save(update_fields=["order_counter"])
@@ -204,22 +214,32 @@ def move(order_id, shop, new_status, reason=""):
     _event(order, new_status, order.reason if new_status in (S.REJECTED, S.CANCELLED) else "")
     return order
 
-
 @transaction.atomic
 def complete(order_id, shop, user, payment_method):
-    """Handed over and paid: this creates the normal bill, so stock and reports update."""
+    """Handed over: this creates the normal bill, so stock and reports update. A credit order goes onto the
+    customer's account instead of being paid now. A delivery fee is not part of the bill."""
     order = Order.objects.select_for_update().get(pk=order_id, shop=shop)
     if order.status not in (S.OUT_FOR_DELIVERY, S.READY_FOR_PICKUP):
         raise BusinessRuleError("The order must be out for delivery or ready for pickup first.", "wrong_status")
-    if payment_method not in ("cash", "upi"):
-        raise BusinessRuleError("Choose cash or UPI.", "invalid_payment")
-    sale, _ = billing_service.create_sale(
-        shop=shop, user=user, client_txn_id=uuid.uuid5(uuid.NAMESPACE_URL, f"order-{order.pk}"),
-        items=[{"shop_product": i.shop_product_id, "quantity": i.quantity, "unit_price": i.unit_price, "discount": Decimal("0")}
-               for i in order.items.all()],
-        payments=[{"method": payment_method, "amount": order.subtotal}],
-        customer_id=None, notes=f"Online order #{order.number}", offline=True)
-    order.sale, order.payment_method, order.status = sale, payment_method, S.COMPLETED
+    items = [{"shop_product": i.shop_product_id, "quantity": i.quantity, "unit_price": i.unit_price, "discount": Decimal("0")}
+             for i in order.items.all()]
+    sale_id = uuid.uuid5(uuid.NAMESPACE_URL, f"order-{order.pk}")
+    if order.payment_method == Order.Payment.CREDIT:
+        link = ShopperCredit.objects.select_related("customer").filter(shopper=order.shopper, shop=shop).first()
+        if link is None or link.customer_id is None or link.status in (ShopperCredit.Status.REQUESTED, ShopperCredit.Status.DECLINED):
+            raise BusinessRuleError("This customer no longer has credit with you. Cancel the order, or approve credit again.", "credit_withdrawn")
+        sale, _ = billing_service.create_sale(
+            shop=shop, user=user, client_txn_id=sale_id, items=items, payments=[], customer_id=link.customer_id,
+            notes=f"Online order #{order.number} (on credit)", offline=True)
+    else:
+        if payment_method not in ("cash", "upi"):
+            raise BusinessRuleError("Choose cash or UPI.", "invalid_payment")
+        sale, _ = billing_service.create_sale(
+            shop=shop, user=user, client_txn_id=sale_id, items=items,
+            payments=[{"method": payment_method, "amount": order.subtotal}],
+            customer_id=None, notes=f"Online order #{order.number}", offline=True)
+        order.payment_method = payment_method
+    order.sale, order.status = sale, S.COMPLETED
     order.save(update_fields=["sale", "payment_method", "status", "updated_at"])
     _event(order, S.COMPLETED)
     return order

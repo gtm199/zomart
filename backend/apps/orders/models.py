@@ -65,6 +65,7 @@ class Order(models.Model):
     class Payment(models.TextChoices):
         CASH = "cash"
         UPI = "upi"
+        CREDIT = "credit"   # pay later: added to the customer's account (khata) at the shop
 
     shop = models.ForeignKey("shops.Shop", on_delete=models.PROTECT, related_name="orders")
     shopper = models.ForeignKey(Shopper, on_delete=models.PROTECT, related_name="orders")
@@ -76,7 +77,7 @@ class Order(models.Model):
     customer_phone = models.CharField(max_length=10)
     delivery_address = models.CharField(max_length=300, blank=True)
     note = models.CharField(max_length=255, blank=True)
-    payment_method = models.CharField(max_length=5, choices=Payment.choices, default=Payment.CASH)  # paid at the door / counter
+    payment_method = models.CharField(max_length=10, choices=Payment.choices, default=Payment.CASH)  # paid at the door / counter
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     delivery_fee = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2)
@@ -113,3 +114,23 @@ class OrderEvent(models.Model):
 
     class Meta:
         ordering = ["id"]
+
+class ShopperCredit(models.Model):
+    """A customer's request for credit (khata) at one shop, and the shop's answer.
+    The shop's own Customer record (with its balance and limit) is linked only when the shop approves."""
+
+    class Status(models.TextChoices):
+        REQUESTED = "requested"
+        APPROVED = "approved"
+        DECLINED = "declined"
+        SUSPENDED = "suspended"   # no new credit orders; what is already owed stays on the account
+
+    shopper = models.ForeignKey(Shopper, on_delete=models.CASCADE, related_name="credits")
+    shop = models.ForeignKey("shops.Shop", on_delete=models.CASCADE, related_name="+")
+    customer = models.ForeignKey("customers.Customer", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.REQUESTED)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["shopper", "shop"], name="uniq_shopper_credit")]

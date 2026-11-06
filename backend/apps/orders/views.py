@@ -1,7 +1,7 @@
 from django.db.models import Count, Q
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -12,14 +12,16 @@ from apps.catalog.models import Category, MasterProduct
 from apps.inventory.models import ShopProduct
 from apps.shops.models import Shop
 from apps.shops.roles import Cap
+from apps.customers.models import CustomerLedger
 from core.tenancy import ShopAccess, ShopScopedMixin
-from services import order_service
+from services import credit_service, order_service
 
 from .auth import ShopperTokenAuthentication
-from .models import Order, Shopper, ShopperShop, ShopperToken
-from .serializers import (AcceptSerializer, CompleteSerializer, LoginSerializer, PlaceOrderSerializer,
-                          PublicShopSerializer, ReasonSerializer, RegisterSerializer, ShopperOrderSerializer,
-                          StoreProductSerializer, StoreSettingsSerializer, VendorOrderSerializer, clean_phone)
+from .models import Order, Shopper, ShopperCredit, ShopperShop, ShopperToken
+from .serializers import (AcceptSerializer, ApproveCreditSerializer, CompleteSerializer, LedgerRowSerializer,
+                          LoginSerializer, PlaceOrderSerializer, PublicShopSerializer, ReasonSerializer,
+                          RegisterSerializer, ShopperOrderSerializer, StoreProductSerializer,
+                          StoreSettingsSerializer, VendorCreditSerializer, VendorOrderSerializer, clean_phone)
 from .throttles import ShopperLoginThrottle
 
 
@@ -274,3 +276,74 @@ class StoreSettingsView(APIView):
         if shop.store_enabled:
             order_service.ensure_store_code(shop)
         return Response(self._data(shop))
+
+# ---------------- customer: credit (khata) ----------------
+def _credit_row(link):
+    snap = credit_service.snapshot(link)
+    shop = link.shop
+    return {"shop": shop.id, "shop_name": shop.name, "shop_phone": shop.phone, "upi_id": shop.upi_id,
+            "status": link.status, "limit": str(snap["limit"]), "owed": str(snap["owed"]),
+            "reserved": str(snap["reserved"]), "available": str(snap["available"])}
+
+
+class CreditListView(ShopperMixin, APIView):
+    def get(self, request):
+        links = ShopperCredit.objects.filter(shopper=request.user).select_related("shop", "customer", "shopper")
+        return Response([_credit_row(link) for link in links])
+
+
+class CreditRequestView(ShopperMixin, APIView):
+    def post(self, request):
+        shop_id = request.data.get("shop")
+        if not str(shop_id).isdigit():
+            raise NotFound("Shop not found.")
+        link = credit_service.request_credit(request.user, int(shop_id))
+        return Response(_credit_row(link), status=status.HTTP_201_CREATED)
+
+
+class CreditLedgerView(ShopperMixin, APIView):
+    def get(self, request, shop_id):
+        link = ShopperCredit.objects.filter(shopper=request.user, shop_id=shop_id).select_related("customer").first()
+        if link is None or link.customer_id is None:
+            return Response([])
+        rows = CustomerLedger.objects.filter(customer=link.customer).order_by("-created_at", "-id")[:100]
+        return Response(LedgerRowSerializer(rows, many=True).data)
+
+
+# ---------------- shop: credit requests ----------------
+class CreditRequestViewSet(ShopScopedMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    queryset = ShopperCredit.objects.select_related("shopper", "customer", "shop")
+    serializer_class = VendorCreditSerializer
+    required_caps = {"*": Cap.MANAGE_ORDERS}
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.request.query_params.get("status"):
+            qs = qs.filter(status=self.request.query_params["status"])
+        return qs.order_by("-requested_at")
+
+    def _trusted_only(self, request):
+        if request.membership.role not in ("owner", "manager"):
+            raise PermissionDenied("Only the owner or a manager can give or change credit.")
+
+    def _out(self, link):
+        return Response(VendorCreditSerializer(self.get_queryset().get(pk=link.pk)).data)
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        self._trusted_only(request)
+        s = ApproveCreditSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        link = credit_service.approve(shop=request.shop, credit_id=self.get_object().pk,
+                                      limit=s.validated_data["limit"], customer_id=s.validated_data["customer"])
+        return self._out(link)
+
+    @action(detail=True, methods=["post"])
+    def decline(self, request, pk=None):
+        self._trusted_only(request)
+        return self._out(credit_service.decide(shop=request.shop, credit_id=self.get_object().pk, status=ShopperCredit.Status.DECLINED))
+
+    @action(detail=True, methods=["post"])
+    def suspend(self, request, pk=None):
+        self._trusted_only(request)
+        return self._out(credit_service.decide(shop=request.shop, credit_id=self.get_object().pk, status=ShopperCredit.Status.SUSPENDED))

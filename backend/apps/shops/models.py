@@ -22,6 +22,7 @@ class Shop(models.Model):
     free_delivery_above = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     min_order = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     store_note = models.CharField(max_length=255, blank=True)  # hours, delivery area
+    upi_id = models.CharField(max_length=80, blank=True)  # shown to customers who owe money, to pay by UPI
     order_counter = models.PositiveIntegerField(default=0)
 
     is_approved = models.BooleanField(default=True)

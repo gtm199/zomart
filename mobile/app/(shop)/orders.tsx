@@ -85,7 +85,11 @@ export default function Orders() {
               <Text style={{ fontWeight: "700" }}>₹{o.total}</Text>
             </View>
             <Text style={{ color: o.status === "placed" ? colors.danger : colors.text, fontWeight: "700" }}>{LABEL[o.status]}</Text>
-            <Muted>{o.fulfilment === "delivery" ? "Delivery" : "Pickup"} · pays {o.payment_method} · {new Date(o.created_at).toLocaleString("en-IN")}</Muted>
+            
+            <Muted>{o.fulfilment === "delivery" ? "Delivery" : "Pickup"} · {new Date(o.created_at).toLocaleString("en-IN")}</Muted>
+            <Text style={{ fontWeight: "700", color: o.payment_method === "credit" ? "#b45309" : colors.text }}>
+              {o.payment_method === "credit" ? "ON CREDIT: goes on the customer's account" : `Pays ${o.payment_method}`}
+            </Text>
             {o.reason ? <Muted>{o.reason}</Muted> : null}
 
             {open === o.id ? (
@@ -119,13 +123,20 @@ export default function Orders() {
                   <Button title={o.fulfilment === "delivery" ? "Out for delivery" : "Ready for pickup"} onPress={() => act(o, "ready")} />
                 )}
                 {(o.status === "out_for_delivery" || o.status === "ready_for_pickup") && (
-                  <>
-                    <Muted>Handed over and paid? This makes the bill and takes the stock.</Muted>
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                      <Button title="Paid in cash" onPress={() => act(o, "complete", { payment_method: "cash" })} />
-                      <Button title="Paid by UPI" kind="ghost" onPress={() => act(o, "complete", { payment_method: "upi" })} />
-                    </View>
-                  </>
+                  o.payment_method === "credit" ? (
+                    <>
+                      <Muted>Handed over? ₹{o.subtotal} is added to the customer's account.{o.fulfilment === "delivery" && Number(o.delivery_fee) > 0 ? ` Collect the delivery fee ₹${o.delivery_fee} in cash.` : ""}</Muted>
+                      <Button title="Handed over (add to their account)" onPress={() => act(o, "complete")} />
+                    </>
+                  ) : (
+                    <>
+                      <Muted>Handed over and paid? This makes the bill and takes the stock.</Muted>
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        <Button title="Paid in cash" onPress={() => act(o, "complete", { payment_method: "cash" })} />
+                        <Button title="Paid by UPI" kind="ghost" onPress={() => act(o, "complete", { payment_method: "upi" })} />
+                      </View>
+                    </>
+                  )
                 )}
                 {["accepted", "packed", "out_for_delivery", "ready_for_pickup"].includes(o.status) && (
                   <>

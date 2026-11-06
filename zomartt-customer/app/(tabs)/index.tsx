@@ -43,6 +43,12 @@ export default function MyShops() {
     try { await api("/store/my-shops/", { body: { shop: s.id } }); setFound([]); setSearch(""); load(); } catch (e: any) { setErr(e.message); }
   };
 
+  const askCredit = async (s: Shop) => {
+    setErr(""); setMsg("");
+    try { await api("/store/credit/request/", { body: { shop: s.id } }); setMsg(`You asked ${s.name} for credit. Watch the Account tab.`); }
+    catch (e: any) { setErr(e.message); }
+  };
+
   return (
     <Screen>
       <FlatList
@@ -75,6 +81,7 @@ export default function MyShops() {
             <Muted>{[s.address, s.city].filter(Boolean).join(", ")}</Muted>
             <Muted>{[s.accepts_delivery ? "Home delivery" : "", s.accepts_pickup ? "Pickup" : ""].filter(Boolean).join(" · ")}</Muted>
             <Button title="Order from this shop" onPress={() => open(s)} />
+            <Button title="Ask for credit (pay later)" kind="ghost" onPress={() => askCredit(s)} />
           </Card>
         )}
       />

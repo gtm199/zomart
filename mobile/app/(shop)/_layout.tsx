@@ -74,6 +74,7 @@ export default function ShopTabs() {
       <Tabs.Screen name="account" options={hidden("My account")} />
       <Tabs.Screen name="orders" options={hidden("Online orders")} />
       <Tabs.Screen name="storesettings" options={hidden("Online store")} />
+      <Tabs.Screen name="creditrequests" options={hidden("Credit requests")} />
     </Tabs>
   );
 }
