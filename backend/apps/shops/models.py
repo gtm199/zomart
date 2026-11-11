@@ -23,6 +23,9 @@ class Shop(models.Model):
     min_order = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     store_note = models.CharField(max_length=255, blank=True)  # hours, delivery area
     upi_id = models.CharField(max_length=80, blank=True)  # shown to customers who owe money, to pay by UPI
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)   # where the shop is
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    delivery_radius_km = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, default=5)
     order_counter = models.PositiveIntegerField(default=0)
 
     is_approved = models.BooleanField(default=True)
@@ -44,6 +47,7 @@ class ShopMembership(models.Model):
         CASHIER = "cashier"
         INVENTORY = "inventory"
         ACCOUNTS = "accounts"
+        DELIVERY = "delivery", "Delivery staff"
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="memberships")
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="memberships")

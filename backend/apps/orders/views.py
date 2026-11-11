@@ -14,14 +14,16 @@ from apps.shops.models import Shop
 from apps.shops.roles import Cap
 from apps.customers.models import CustomerLedger
 from core.tenancy import ShopAccess, ShopScopedMixin
-from services import credit_service, order_service
+from services import credit_service, order_service, tracking_service
+from services.exceptions import BusinessRuleError
 
 from .auth import ShopperTokenAuthentication
-from .models import Order, Shopper, ShopperCredit, ShopperShop, ShopperToken
+from .models import Order, SavedAddress, Shopper, ShopperCredit, ShopperShop, ShopperToken
 from .serializers import (AcceptSerializer, ApproveCreditSerializer, CompleteSerializer, LedgerRowSerializer,
                           LoginSerializer, PlaceOrderSerializer, PublicShopSerializer, ReasonSerializer,
                           RegisterSerializer, ShopperOrderSerializer, StoreProductSerializer,
-                          StoreSettingsSerializer, VendorCreditSerializer, VendorOrderSerializer, clean_phone)
+                          StoreSettingsSerializer, VendorCreditSerializer, VendorOrderSerializer,
+                          CustomerOrderSerializer, ReadySerializer,LocationSerializer, SavedAddressSerializer, clean_phone)
 from .throttles import ShopperLoginThrottle
 
 
@@ -166,7 +168,8 @@ class StoreCategoriesView(ShopperMixin, APIView):
 # ---------------- customer: orders ----------------
 class ShopperOrderViewSet(ShopperMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin,
                           viewsets.GenericViewSet):
-    serializer_class = ShopperOrderSerializer
+    #serializer_class = ShopperOrderSerializer
+    serializer_class = CustomerOrderSerializer
 
     def get_queryset(self):
         return Order.objects.filter(shopper=self.request.user).select_related("shop").prefetch_related("items", "events")
@@ -177,20 +180,41 @@ class ShopperOrderViewSet(ShopperMixin, mixins.ListModelMixin, mixins.RetrieveMo
         d = s.validated_data
         order, created = order_service.place_order(
             shopper=request.user, shop_id=d["shop"], items=d["items"], fulfilment=d["fulfilment"],
-            address=d["address"], note=d["note"], payment_method=d["payment_method"], client_txn_id=d["client_txn_id"])
+            address=d["address"], note=d["note"], payment_method=d["payment_method"], client_txn_id=d["client_txn_id"],
+            lat=d["delivery_lat"], lng=d["delivery_lng"], address_id=d["address_id"])
         order = self.get_queryset().get(pk=order.pk)
-        return Response(ShopperOrderSerializer(order).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        return Response(CustomerOrderSerializer(order).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
+    #
+    @action(detail=True, methods=["patch"], url_path="location")
+    def location(self, request, pk=None):
+        """The customer moves the delivery pin (the rider's link follows it)."""
+        order = self.get_object()
+        s = LocationSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        order_service.set_position(order.pk, request.user, s.validated_data["lat"], s.validated_data["lng"])
+        return Response(CustomerOrderSerializer(self.get_queryset().get(pk=order.pk)).data)
+    
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         order = self.get_object()
         order_service.customer_cancel(order.pk, request.user)
-        return Response(ShopperOrderSerializer(self.get_queryset().get(pk=order.pk)).data)
+        return Response(CustomerOrderSerializer(self.get_queryset().get(pk=order.pk)).data)
 
+#---------------- delivery: tracking ----------------
+class OrderTrackView(ShopperMixin, APIView):
+    """Live tracking for the customer's own order."""
 
+    def get(self, request, order_id):
+        order = (Order.objects.filter(pk=order_id, shopper=request.user)
+                 .select_related("shop", "rider", "track").first())
+        if order is None:
+            raise NotFound("Order not found.")
+        return Response(tracking_service.track_payload(order))
+    
 # ---------------- shop: orders ----------------
 class OrderViewSet(ShopScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    queryset = Order.objects.prefetch_related("items", "events").select_related("shop")
+    queryset = Order.objects.prefetch_related("items", "events").select_related("shop", "rider")
     serializer_class = VendorOrderSerializer
     required_caps = {"*": Cap.MANAGE_ORDERS}
 
@@ -236,12 +260,11 @@ class OrderViewSet(ShopScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelM
 
     @action(detail=True, methods=["post"])
     def ready(self, request, pk=None):
-        """Packed order goes out for delivery, or waits at the counter for pickup."""
-        order = self.get_object()
-        step = (Order.Status.OUT_FOR_DELIVERY if order.fulfilment == Order.Fulfilment.DELIVERY
-                else Order.Status.READY_FOR_PICKUP)
-        return self._out(order_service.move(order.pk, request.shop, step))
-
+        """Packed order goes out for delivery (optionally with one of your riders), or waits at the counter for pickup."""
+        s = ReadySerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        return self._out(order_service.send_out(self.get_object().pk, request.shop, s.validated_data["rider"]))
+    
     @action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
         s = CompleteSerializer(data=request.data)
@@ -347,3 +370,26 @@ class CreditRequestViewSet(ShopScopedMixin, mixins.ListModelMixin, viewsets.Gene
     def suspend(self, request, pk=None):
         self._trusted_only(request)
         return self._out(credit_service.decide(shop=request.shop, credit_id=self.get_object().pk, status=ShopperCredit.Status.SUSPENDED))
+
+
+# ---------------- customer: saved addresses ----------------
+class SavedAddressViewSet(ShopperMixin, mixins.ListModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin,
+                          mixins.DestroyModelMixin, viewsets.GenericViewSet):
+    """Save an address once, with its map position: a pin the customer dropped, or their current location. Moving the pin
+    later changes it for every delivery that uses this address."""
+    serializer_class = SavedAddressSerializer
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+
+    def get_queryset(self):
+        return SavedAddress.objects.filter(shopper=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        s = SavedAddressSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        if d.get("lat") is None:
+            raise BusinessRuleError("Set the location on the map, or use your current location, before saving.", "pin_required")
+        if self.get_queryset().count() >= 10:
+            raise BusinessRuleError("You can save up to 10 addresses. Delete one first.", "too_many_addresses")
+        obj = SavedAddress.objects.create(shopper=request.user, label=d.get("label") or "Home", address=d["address"], lat=d["lat"], lng=d["lng"])
+        return Response(SavedAddressSerializer(obj).data, status=status.HTTP_201_CREATED)

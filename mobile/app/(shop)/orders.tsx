@@ -10,6 +10,7 @@ type Order = {
   id: number; number: number; status: string; fulfilment: "delivery" | "pickup"; customer_name: string; customer_phone: string;
   delivery_address: string; note: string; payment_method: string; subtotal: string; delivery_fee: string; total: string;
   reason: string; created_at: string; items: Item[];
+  rider_name: string; delivery_lat: string | null; delivery_lng: string | null;
 };
 
 const LABEL: Record<string, string> = {
@@ -29,12 +30,14 @@ export default function Orders() {
   const [adjust, setAdjust] = useState<Record<number, string>>({});
   const [reason, setReason] = useState("");
   const [err, setErr] = useState("");
+  const [riders, setRiders] = useState<{ id: number; name: string; phone: string }[]>([]);
 
   const load = useCallback(async () => {
     try {
       const r = await api<{ results: Order[] }>(`/shop/orders/?scope=${scope}&page_size=100`);
       setRows(r.results);
       setErr("");
+      api<{ id: number; name: string; phone: string }[]>("/shop/riders/").then(setRiders).catch(() => {});
     } catch (e: any) { setErr(e.message); }
   }, [scope]);
 
@@ -97,6 +100,13 @@ export default function Orders() {
                 {o.fulfilment === "delivery" && <Text>📍 {o.delivery_address}</Text>}
                 {o.note ? <Text>Note: {o.note}</Text> : null}
                 <Text>📞 {o.customer_phone}</Text>
+                
+                {o.rider_name ? <Text>🛵 Rider: {o.rider_name}</Text> : null}
+                {o.delivery_lat ? (
+                  <Button title="Customer's pin in Google Maps" kind="ghost"
+                    onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${o.delivery_lat},${o.delivery_lng}`)} />
+                ) : null}
+
                 {o.items.map((i) => (
                   <View key={i.id} style={{ marginTop: 4 }}>
                     <Text>
@@ -120,7 +130,15 @@ export default function Orders() {
                 )}
                 {o.status === "accepted" && <Button title="Mark as packed" onPress={() => act(o, "pack")} />}
                 {o.status === "packed" && (
-                  <Button title={o.fulfilment === "delivery" ? "Out for delivery" : "Ready for pickup"} onPress={() => act(o, "ready")} />
+                  o.fulfilment === "delivery" ? (
+                    <>
+                      <Muted>Choose who takes it. The customer can follow that person on the map.</Muted>
+                      {riders.map((r) => (
+                        <Button key={r.id} title={`Out for delivery with ${r.name}`} onPress={() => act(o, "ready", { rider: r.id })} />
+                      ))}
+                      <Button title="Out for delivery (no live tracking)" kind="ghost" onPress={() => act(o, "ready")} />
+                    </>
+                  ) : <Button title="Ready for pickup" onPress={() => act(o, "ready")} />
                 )}
                 {(o.status === "out_for_delivery" || o.status === "ready_for_pickup") && (
                   o.payment_method === "credit" ? (

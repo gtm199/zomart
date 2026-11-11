@@ -9,3 +9,6 @@ python-dotenv>=1.0
 openpyxl>=3.1
 django-anymail[brevo]
 cloudinary>=1.40
+channels>=4.1
+uvicorn[standard]>=0.30
+daphne>=0.7

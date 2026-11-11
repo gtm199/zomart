@@ -1,12 +1,14 @@
 from django.urls import path
 from rest_framework.routers import SimpleRouter
 
-from . import views
+from . import delivery_views, views
 
 router = SimpleRouter()
 router.register("shop/orders", views.OrderViewSet, basename="shop-order")
 router.register("store/orders", views.ShopperOrderViewSet, basename="store-order")
 router.register("shop/credit-requests", views.CreditRequestViewSet, basename="shop-credit-request")
+router.register("delivery/orders", delivery_views.RiderOrderViewSet, basename="delivery-order")
+router.register("store/addresses", views.SavedAddressViewSet, basename="store-address")
 
 urlpatterns = [
     path("store/auth/register/", views.ShopperRegisterView.as_view()),
@@ -19,6 +21,8 @@ urlpatterns = [
     path("store/shops/<int:shop_id>/categories/", views.StoreCategoriesView.as_view()),
     path("store/my-shops/", views.MyShopsView.as_view()),
     path("shop/store-settings/", views.StoreSettingsView.as_view()),
+    path("store/orders/<int:order_id>/track/", views.OrderTrackView.as_view()),
+    path("shop/riders/", delivery_views.RiderListView.as_view()),
     path("store/credit/", views.CreditListView.as_view()),
     path("store/credit/request/", views.CreditRequestView.as_view()),
     path("store/credit/<int:shop_id>/ledger/", views.CreditLedgerView.as_view()),

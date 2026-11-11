@@ -34,6 +34,7 @@
       "expo-secure-store",
       "expo-image",
       "expo-font",
+      ["expo-location", { "locationWhenInUsePermission": "Zomartt uses your location to set the delivery address on the map." }],
       [
         "expo-splash-screen",
         {

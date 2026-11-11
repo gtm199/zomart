@@ -1,9 +1,11 @@
 import * as SecureStore from "expo-secure-store";
 
 export const BASE = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+export const WS_BASE = BASE.replace(/\/api\/v1\/?$/, "").replace(/^http/, "ws");   // https://x/api/v1 -> wss://x
 
 let token: string | null = null;
 export const setToken = (t: string | null) => { token = t; };
+export const getToken = () => token;
 
 export const keep = {
   get: (k: string) => SecureStore.getItemAsync(k),

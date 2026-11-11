@@ -83,6 +83,13 @@ class Order(models.Model):
     total = models.DecimalField(max_digits=12, decimal_places=2)
     reason = models.CharField(max_length=255, blank=True)  # why it was rejected or cancelled
     sale = models.ForeignKey("sales.Sale", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    # delivery tracking
+    rider = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    address = models.ForeignKey("orders.SavedAddress", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    delivery_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)  # a copy, used when there is no saved address
+    delivery_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    delivery_pin = models.CharField(max_length=4, blank=True)   # the customer tells it to the rider; never sent to the shop or the rider
+    pin_attempts = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -93,6 +100,16 @@ class Order(models.Model):
             models.UniqueConstraint(fields=["shopper", "client_txn_id"], name="uniq_order_shopper_txn"),
         ]
         indexes = [models.Index(fields=["shop", "status"])]
+
+    def position(self):
+        """Where to deliver, as (lat, lng) or None. The saved address is the source of truth, so when the customer moves
+        the pin on it, every link built from it is right. The copy on the order is used if there is no saved address."""
+        a = self.address
+        if a is not None and a.lat is not None and a.lng is not None:
+            return float(a.lat), float(a.lng)
+        if self.delivery_lat is not None and self.delivery_lng is not None:
+            return float(self.delivery_lat), float(self.delivery_lng)
+        return None
 
 
 class OrderItem(models.Model):
@@ -134,3 +151,30 @@ class ShopperCredit(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["shopper", "shop"], name="uniq_shopper_credit")]
+
+# added a new model for tracking delivery status and rider location
+class DeliveryTrack(models.Model):
+    """Where the rider is right now. One row per delivery, overwritten on every update; the position is erased when
+    the order is delivered, so no location history is kept."""
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="track")
+    started_at = models.DateTimeField(null=True, blank=True)
+    arrived_at = models.DateTimeField(null=True, blank=True)
+    rider_lat = models.FloatField(null=True, blank=True)
+    rider_lng = models.FloatField(null=True, blank=True)
+    heading = models.FloatField(null=True, blank=True)
+    speed = models.FloatField(null=True, blank=True)       # metres per second
+    accuracy = models.FloatField(null=True, blank=True)    # metres
+    updated_at = models.DateTimeField(null=True, blank=True)
+
+# added a new model for counting Google API calls, so we never exceed the free allowance
+class SavedAddress(models.Model):
+    """A delivery address the customer saved. The map position is stored with it, so it is never looked up again."""
+    shopper = models.ForeignKey(Shopper, on_delete=models.CASCADE, related_name="addresses")
+    label = models.CharField(max_length=30, default="Home")
+    address = models.CharField(max_length=300)
+    lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]

@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Zomartt Delivery",
+    "slug": "zomartt-delivery",
+    "scheme": "zomarttdelivery",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "android": { "package": "com.example.zomarttdelivery" },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      ["expo-location", {
+        "locationAlwaysAndWhenInUsePermission": "Zomartt Delivery shares your location with the customer while a delivery is in progress.",
+        "locationWhenInUsePermission": "Zomartt Delivery shares your location with the customer while a delivery is in progress.",
+        "isAndroidBackgroundLocationEnabled": true,
+        "isAndroidForegroundServiceEnabled": true
+      }]
+    ]
+  }
+}

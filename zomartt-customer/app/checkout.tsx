@@ -2,10 +2,12 @@ import * as Crypto from "expo-crypto";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
-import { Button, Card, Err, Input, Muted, Screen } from "../components/ui";
+import { Button, Card, Err, Input, KeyboardAware, Muted, Screen } from "../components/ui";
 import { api, keep } from "../services/api";
 import { useCart } from "../store/cart";
 import type { Shop } from "./(tabs)/index";
+import LocationPicker, { Point } from "../components/LocationPicker";
+import SavedAddresses from "../components/SavedAddresses";
 
 type CreditRow = { shop: number; status: string; limit: string; owed: string; available: string };
 
@@ -20,6 +22,8 @@ export default function Checkout() {
   const [payment, setPayment] = useState<"cash" | "upi" | "credit">("cash");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [point, setPoint] = useState<Point | null>(null);
+  const [savedId, setSavedId] = useState<number | null>(null);
   const txn = useRef(Crypto.randomUUID()); // a double tap can never place two orders
 
   const loadCredit = useCallback(async (shopId: number) => {
@@ -58,6 +62,8 @@ export default function Checkout() {
       const order = await api<{ id: number }>("/store/orders/", {
         body: {
           shop: cart.shop.id, client_txn_id: txn.current, fulfilment, address, note, payment_method: payment,
+          delivery_lat: fulfilment === "delivery" ? point?.lat : null, delivery_lng: fulfilment === "delivery" ? point?.lng : null,
+          address_id: fulfilment === "delivery" ? savedId : null,
           items: cart.lines.map((l) => ({ shop_product: l.id, quantity: String(l.qty) })),
         },
       });
@@ -68,7 +74,8 @@ export default function Checkout() {
   };
 
   return (
-    <Screen>
+    <Screen safeBottom>
+      <KeyboardAware>
         <ScrollView keyboardShouldPersistTaps="handled">
           <Card>
             <Text style={{ fontWeight: "700" }}>{cart.shop.name}</Text>
@@ -83,6 +90,12 @@ export default function Checkout() {
             {fulfilment === "delivery" && (
               <Input placeholder="Full delivery address (house, street, landmark)" multiline value={address} onChangeText={setAddress} />
             )}
+            {fulfilment === "delivery" && (
+              <SavedAddresses address={address} point={point}
+                onPick={(a, p) => { setAddress(a); setPoint(p); }}
+                onMatch={setSavedId} />
+            )}
+            {fulfilment === "delivery" && <LocationPicker value={point} onChange={setPoint} />}
             <Input placeholder="Note for the shop (optional)" value={note} onChangeText={setNote} />
           </Card>
           <Card>
@@ -122,8 +135,9 @@ export default function Checkout() {
           </Card>
           <Err msg={err} />
           <Button title={busy ? "Placing order..." : "Place order"} onPress={place}
-            disabled={busy || below || creditTooSmall || (fulfilment === "delivery" && address.trim().length < 8)} />
+            disabled={busy || below || creditTooSmall || (fulfilment === "delivery" && address.trim().length < 8) || (fulfilment === "delivery" && !point)} />
         </ScrollView>
+      </KeyboardAware>
     </Screen>
   );
 }

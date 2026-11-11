@@ -6,7 +6,7 @@ import { api } from "../../services/api";
 import { useSession } from "../../store/session";
 
 type Member = { id: number; username: string; full_name: string; phone: string; role: string; is_active: boolean };
-const ROLES = [["cashier", "Cashier"], ["manager", "Manager"], ["inventory", "Stock keeper"], ["accounts", "Accounts"]] as const;
+const ROLES = [["cashier", "Cashier"], ["manager", "Manager"], ["inventory", "Stock keeper"], ["accounts", "Accounts"], ["delivery", "Delivery rider"]] as const;
 
 export default function Staff() {
   const { can } = useSession();

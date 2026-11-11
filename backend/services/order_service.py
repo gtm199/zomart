@@ -1,15 +1,17 @@
 """Online orders: placing, the shop's steps, and turning a finished order into a normal bill."""
+import hmac
 import secrets
 import uuid
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
+from django.db.models import F as FExpr
 
 from apps.catalog.models import MasterProduct
 from apps.inventory.models import ShopProduct
-from apps.orders.models import Order, OrderEvent, OrderItem, ShopperCredit, ShopperShop
-from apps.shops.models import Shop
-from services import billing_service, credit_service, subscription_service
+from apps.orders.models import Order, OrderEvent, OrderItem, SavedAddress, ShopperCredit, ShopperShop
+from apps.shops.models import Shop, ShopMembership
+from services import billing_service, credit_service, subscription_service, tracking_service
 from services.exceptions import BusinessRuleError
 from services.money import money, qty
 
@@ -50,20 +52,29 @@ def delivery_fee_for(shop, fulfilment, subtotal):
         return Decimal("0.00")
     return shop.delivery_fee
 
+def check_area(shop, lat, lng):
+    """The location must be a real place and inside the shop's delivery distance."""
+    if not tracking_service.valid_point(lat, lng):
+        raise BusinessRuleError("The delivery location on the map is not valid. Choose it again.", "invalid_location")
+    if shop.latitude is not None and shop.delivery_radius_km is not None:
+        km = tracking_service.haversine_km(shop.latitude, shop.longitude, lat, lng)
+        if km > float(shop.delivery_radius_km):
+            raise BusinessRuleError(
+                f"This location is {km:.1f} km from the shop. The shop delivers up to {shop.delivery_radius_km} km.", "outside_area")
 
 def _event(order, status, note=""):
     OrderEvent.objects.create(order=order, status=status, note=note[:255])
 
 
 # ---------------- the customer places an order ----------------
-def place_order(*, shopper, shop_id, items, fulfilment, address, note, payment_method, client_txn_id):
+def place_order(*, shopper, shop_id, items, fulfilment, address, note, payment_method, client_txn_id, lat=None, lng=None, address_id=None):
     """Idempotent on (shopper, client_txn_id). Returns (order, created)."""
     existing = Order.objects.filter(shopper=shopper, client_txn_id=client_txn_id).first()
     if existing:
         return existing, False
     try:
         with transaction.atomic():
-            order = _place(shopper, shop_id, items, fulfilment, address, note, payment_method, client_txn_id)
+            order = _place(shopper, shop_id, items, fulfilment, address, note, payment_method, client_txn_id, lat, lng, address_id)
     except IntegrityError:
         existing = Order.objects.filter(shopper=shopper, client_txn_id=client_txn_id).first()
         if existing:
@@ -72,7 +83,7 @@ def place_order(*, shopper, shop_id, items, fulfilment, address, note, payment_m
     return order, True
 
 
-def _place(shopper, shop_id, items, fulfilment, address, note, payment_method, client_txn_id):
+def _place(shopper, shop_id, items, fulfilment, address, note, payment_method, client_txn_id, lat=None, lng=None, address_id=None):
     shop = Shop.objects.select_for_update().filter(pk=shop_id).first()
     if shop is None or not takes_orders(shop):
         raise BusinessRuleError("This shop is not taking online orders right now.", "shop_closed")
@@ -83,6 +94,19 @@ def _place(shopper, shop_id, items, fulfilment, address, note, payment_method, c
     address = (address or "").strip()
     if fulfilment == F.DELIVERY and len(address) < 8:
         raise BusinessRuleError("Enter your full delivery address.", "address_required")
+
+    saved = None
+    if fulfilment == F.DELIVERY and address_id:
+        saved = SavedAddress.objects.filter(pk=address_id, shopper=shopper).first()
+        if saved is None:
+            raise BusinessRuleError("That saved address was not found.", "address_not_found")
+        if lat is None and saved.lat is not None:
+            lat, lng = float(saved.lat), float(saved.lng)   # the saved address decides where the pin is
+    if fulfilment == F.DELIVERY and lat is not None:
+        check_area(shop, lat, lng)
+    if fulfilment != F.DELIVERY:
+        lat = lng = None
+        saved = None
 
     ids = [row["shop_product"] for row in items]
     if not ids:
@@ -130,6 +154,8 @@ def _place(shopper, shop_id, items, fulfilment, address, note, payment_method, c
         shop=shop, shopper=shopper, number=shop.order_counter, client_txn_id=client_txn_id, fulfilment=fulfilment,
         customer_name=shopper.name, customer_phone=shopper.phone,
         delivery_address=address if fulfilment == F.DELIVERY else "", note=(note or "")[:255],
+        address=saved, delivery_lat=lat, delivery_lng=lng,
+        delivery_pin=f"{secrets.randbelow(10000):04d}" if fulfilment == F.DELIVERY else "",
         payment_method=payment_method, subtotal=subtotal, delivery_fee=fee, total=subtotal + fee)
     for sp, master, quantity, line_total in lines:
         OrderItem.objects.create(
@@ -212,6 +238,10 @@ def move(order_id, shop, new_status, reason=""):
     order.status = new_status
     order.save(update_fields=["status", "reason", "updated_at"])
     _event(order, new_status, order.reason if new_status in (S.REJECTED, S.CANCELLED) else "")
+
+    if new_status in (S.REJECTED, S.CANCELLED):
+        tracking_service.clear(order)
+    tracking_service.notify_refresh(order)
     return order
 
 @transaction.atomic
@@ -242,4 +272,78 @@ def complete(order_id, shop, user, payment_method):
     order.sale, order.status = sale, S.COMPLETED
     order.save(update_fields=["sale", "payment_method", "status", "updated_at"])
     _event(order, S.COMPLETED)
+    tracking_service.clear(order)   # forget where the rider was
+    tracking_service.notify_refresh(order)
+    return order
+
+# ---------------- riders ----------------
+MAX_PIN_TRIES = 5
+
+
+@transaction.atomic
+def send_out(order_id, shop, rider_id=None):
+    """Packed order goes out for delivery (with a rider the customer can follow) or waits for pickup."""
+    order = Order.objects.select_for_update().get(pk=order_id, shop=shop)
+    rider = None
+    if rider_id is not None:
+        if order.fulfilment != F.DELIVERY:
+            raise BusinessRuleError("Riders are only for delivery orders.", "wrong_fulfilment")
+        member = ShopMembership.objects.filter(shop=shop, user_id=rider_id, role="delivery", is_active=True).select_related("user").first()
+        if member is None:
+            raise BusinessRuleError("That person is not one of your delivery staff.", "rider_not_found")
+        rider = member.user
+    step = S.OUT_FOR_DELIVERY if order.fulfilment == F.DELIVERY else S.READY_FOR_PICKUP
+    order = move(order_id, shop, step)
+    if rider is not None:
+        order.rider = rider
+        order.save(update_fields=["rider", "updated_at"])
+    return order
+
+
+def check_pin(order, pin):
+    """True when the customer's PIN matches. A wrong try is counted and saved (so it cannot be undone by an error)."""
+    if hmac.compare_digest(str(pin or "").strip(), order.delivery_pin or "-"):
+        return True
+    Order.objects.filter(pk=order.pk).update(pin_attempts=FExpr("pin_attempts") + 1)
+    return False
+
+
+def finish_delivery(order_id, shop, rider, payment_method="cash"):
+    return complete(order_id, shop, rider, payment_method)
+
+# ---------------- the map position of a delivery ----------------
+@transaction.atomic
+def set_position(order_id, shopper, lat, lng):
+    """The customer moves the pin of an order that is not delivered yet. If the order uses a saved address, that address
+    moves too, so the rider's link and every later order are right."""
+    order = Order.objects.select_for_update(of=("self",)).select_related("shop", "address").get(pk=order_id, shopper=shopper)
+    if order.fulfilment != F.DELIVERY or order.status not in ACTIVE:
+        raise BusinessRuleError("The pin can only be changed on a delivery that is not finished.", "too_late")
+    check_area(order.shop, lat, lng)
+    if order.address_id:
+        SavedAddress.objects.filter(pk=order.address_id).update(lat=lat, lng=lng)
+    order.delivery_lat, order.delivery_lng = lat, lng
+    order.save(update_fields=["delivery_lat", "delivery_lng", "updated_at"])
+    tracking_service.notify_refresh(order)
+    return order
+
+
+@transaction.atomic
+def rider_save_position(order_id, shop, rider, lat, lng):
+    """First delivery to an address with no pin: the rider stands at the door and saves the position, once. It is stored
+    on the customer's address, so every later delivery there has a link. Not allowed if there is already a position."""
+    order = Order.objects.select_for_update(of=("self",)).select_related("address", "shopper").get(pk=order_id, shop=shop, rider=rider)
+    if order.status != S.OUT_FOR_DELIVERY:
+        raise BusinessRuleError("This order is not out for delivery.", "wrong_status")
+    if order.position() is not None:
+        raise BusinessRuleError("This order already has a map position. Ask the customer to move the pin if it is wrong.", "has_position")
+    if not tracking_service.valid_point(lat, lng):
+        raise BusinessRuleError("Your location is not valid. Try again outside, with GPS on.", "invalid_location")
+    if order.address_id:
+        SavedAddress.objects.filter(pk=order.address_id).update(lat=lat, lng=lng)
+    elif SavedAddress.objects.filter(shopper=order.shopper).count() < 10:
+        order.address = SavedAddress.objects.create(shopper=order.shopper, label="Home", address=order.delivery_address, lat=lat, lng=lng)
+    order.delivery_lat, order.delivery_lng = lat, lng
+    order.save(update_fields=["address", "delivery_lat", "delivery_lng", "updated_at"])
+    tracking_service.notify_refresh(order)
     return order

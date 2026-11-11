@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "apps.purchases",
     "apps.expenses",
     "apps.orders",
+    "channels",
 ]
 
 MIDDLEWARE = [
@@ -165,3 +166,12 @@ else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Zomartt <no-reply@localhost>")
+
+# ---- live tracking (WebSocket) ----
+ASGI_APPLICATION = "config.asgi.application"
+if os.environ.get("REDIS_URL"):   # only needed with more than one server process
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels_redis.core.RedisChannelLayer",
+                                  "CONFIG": {"hosts": [os.environ["REDIS_URL"]]}}}
+else:
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+

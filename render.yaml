@@ -16,7 +16,8 @@ services:
     plan: free                 # use "free" only for a short test: free services are deleted after 30 days
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    dockerCommand: sh ./entrypoint.sh gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60
+    dockerCommand: sh /app/entrypoint.sh uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --access-log
+    #dockerCommand: sh ./entrypoint.sh gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60
     #dockerCommand: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60
     healthCheckPath: /api/v1/health/
     #disk:                    # remove this block for a free test (free services cannot have a disk)
@@ -81,6 +82,8 @@ services:
         sync: false
       - key: CLOUDINARY_URL
         sync: false
+      - key: FORWARDED_ALLOW_IPS
+        value: "*"
 
 # ---- NEW: customer web app (static site) ----
   - type: web

@@ -19,12 +19,12 @@ ACTIVE_ORDERS = [Order.Status.PLACED, Order.Status.ACCEPTED, Order.Status.PACKED
 def snapshot(link):
     """limit, what is owed, what is promised in orders not yet handed over, and what is left to use."""
     customer = link.customer
-    limit = customer.credit_limit if customer and customer.credit_limit is not None else Decimal("0")
-    owed = customer.balance if customer else Decimal("0")
-    reserved = (Order.objects.filter(shopper=link.shopper, shop=link.shop, payment_method=Order.Payment.CREDIT,
-                                     status__in=ACTIVE_ORDERS).aggregate(t=Sum("subtotal"))["t"] or Decimal("0"))
+    limit = money(customer.credit_limit if customer and customer.credit_limit is not None else 0)
+    owed = money(customer.balance if customer else 0)
+    reserved = money(Order.objects.filter(shopper=link.shopper, shop=link.shop, payment_method=Order.Payment.CREDIT,
+                                          status__in=ACTIVE_ORDERS).aggregate(t=Sum("subtotal"))["t"] or 0)
     return {"limit": limit, "owed": owed, "reserved": reserved,
-            "available": max(Decimal("0"), limit - owed - reserved)}
+            "available": money(max(Decimal("0"), limit - owed - reserved))}
 
 
 def request_credit(shopper, shop_id):

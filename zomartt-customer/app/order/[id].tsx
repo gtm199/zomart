@@ -1,18 +1,22 @@
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Linking, ScrollView, Text } from "react-native";
 import { Button, Card, Err, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
 import { STATUS } from "../(tabs)/orders";
+import LocationPicker from "../../components/LocationPicker";
 
 type Item = { id: number; product_name: string; unit: string; ordered_quantity: string; quantity: string; unit_price: string; line_total: string };
 type Order = {
   id: number; number: number; shop_name: string; shop_phone: string; status: string; fulfilment: string; delivery_address: string;
   note: string; payment_method: string; subtotal: string; delivery_fee: string; total: string; reason: string; items: Item[];
+  delivery_lat: number | null; delivery_lng: number | null;
   events: { status: string; note: string; created_at: string }[];
+  delivery_pin: string | null; can_track: boolean;
 };
 
 export default function OrderDetail() {
+  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [o, setO] = useState<Order | null>(null);
   const [err, setErr] = useState("");
@@ -43,6 +47,23 @@ export default function OrderDetail() {
             ? <Muted>On credit: ₹{o.subtotal} will be added to your account at {o.shop_name}.{o.fulfilment === "delivery" && Number(o.delivery_fee) > 0 ? ` Pay the delivery fee ₹${o.delivery_fee} when it arrives.` : ""}</Muted>
             : <Muted>Pay ₹{o.total} in {o.payment_method === "cash" ? "cash" : "UPI"} to the shop when you {o.fulfilment === "delivery" ? "receive" : "collect"} the order.</Muted>)}
         </Card>
+        {o.delivery_pin && (
+          <Card>
+            <Text style={{ fontWeight: "700" }}>Your delivery PIN</Text>
+            <Text style={{ fontSize: 34, fontWeight: "800", letterSpacing: 8, color: colors.primary }}>{o.delivery_pin}</Text>
+            <Muted>Tell this PIN to the delivery person only when you have received your order.</Muted>
+          </Card>
+        )}
+        {o.can_track && <Button title="Track order on the map" onPress={() => router.push({ pathname: "/track/[id]", params: { id } })} />}
+        {o.fulfilment === "delivery" && ["placed", "accepted", "packed", "out_for_delivery"].includes(o.status) && (
+          <LocationPicker
+            value={o.delivery_lat != null && o.delivery_lng != null ? { lat: o.delivery_lat, lng: o.delivery_lng } : null}
+            onChange={async (p) => {
+              try { await api(`/store/orders/${id}/location/`, { method: "PATCH", body: { lat: p.lat, lng: p.lng } }); load(); }
+              catch (e: any) { setErr(e.message); }
+            }}
+          />
+        )}
         <Card>
           {o.items.map((i) => (
             <Text key={i.id}>

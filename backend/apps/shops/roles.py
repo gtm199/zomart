@@ -14,7 +14,7 @@ class Cap:
     VIEW_PURCHASES = "view_purchases"
     MANAGE_PURCHASES = "manage_purchases"
     MANAGE_ORDERS = "manage_orders"
-
+    DELIVER = "deliver"
 
 ALL_CAPS = {v for k, v in vars(Cap).items() if not k.startswith("_")}
 
@@ -26,4 +26,5 @@ ROLE_CAPS = {
                   Cap.VIEW_PURCHASES, Cap.MANAGE_PURCHASES},
     "accounts": {Cap.VIEW_SHOP, Cap.VIEW_PRODUCTS, Cap.VIEW_COST, Cap.VIEW_SALES, Cap.VIEW_CUSTOMERS,
                  Cap.MANAGE_CUSTOMERS, Cap.VIEW_REPORTS, Cap.VIEW_PURCHASES, Cap.MANAGE_PURCHASES},
+    "delivery": {Cap.DELIVER},
 }
