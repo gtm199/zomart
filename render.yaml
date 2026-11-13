@@ -84,6 +84,8 @@ services:
         sync: false
       - key: FORWARDED_ALLOW_IPS
         value: "*"
+      - key: RETENTION_CRON_TOKEN
+        sync: false
 
 # ---- NEW: customer web app (static site) ----
   - type: web

@@ -187,6 +187,8 @@ def return_items(*, shop, user, sale_id, items, refund_method="cash"):
     if refund_method not in ALLOWED_METHODS:
         raise BusinessRuleError("Invalid refund method.", "invalid_payment")
     sale = Sale.objects.select_for_update().get(shop=shop, pk=sale_id)
+    if hasattr(sale, "retention_marker"):   # its item details were archived
+        raise BusinessRuleError("This bill's item details were archived, so it can no longer be returned here.", "archived_bill")
     sale_items = {i.pk: i for i in SaleItem.objects.select_for_update().filter(sale=sale)}
     refund_total = Decimal("0")
     for row in items:

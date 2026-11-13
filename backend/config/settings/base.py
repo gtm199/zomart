@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "apps.purchases",
     "apps.expenses",
     "apps.orders",
+    "apps.retention",
     "channels",
 ]
 
@@ -175,3 +176,8 @@ if os.environ.get("REDIS_URL"):   # only needed with more than one server proces
 else:
     CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 
+
+# ---- data retention ----
+RETENTION_CRON_TOKEN = os.environ.get("RETENTION_CRON_TOKEN", "")                          # the secret the daily scheduler sends
+RETENTION_MAX_BILLS_PER_RUN = int(os.environ.get("RETENTION_MAX_BILLS_PER_RUN", "1000"))   # per shop, per day
+RETENTION_EMAIL_MAX_BILLS = int(os.environ.get("RETENTION_EMAIL_MAX_BILLS", "5000"))

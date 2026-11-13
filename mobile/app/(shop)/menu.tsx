@@ -21,6 +21,7 @@ const ITEMS = [
   { title: "Online orders", subtitle: "Orders from your customers' app", icon: "bag-handle-outline", path: "/(shop)/orders", cap: "manage_orders" },
   { title: "Online store", subtitle: "Turn on ordering, delivery and pickup", icon: "storefront-outline", path: "/(shop)/storesettings", cap: "manage_shop" },
   { title: "Credit requests", subtitle: "Customers asking for credit (khata)", icon: "card-outline", path: "/(shop)/creditrequests", cap: "manage_orders" },
+  { title: "Data retention", subtitle: "Old bill details, warnings and the cleanup log", icon: "archive-outline", path: "/(shop)/retention", cap: "manage_shop" },
 ] as const;
 
 type Plan = { write_allowed: boolean; days_left: number | null; reminder_days: number };
@@ -33,6 +34,7 @@ export default function Menu() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [newOrders, setNewOrders] = useState(0);
   const [pendingCredit, setPendingCredit] = useState(0);
+  const [retentionWarning, setRetentionWarning] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -41,6 +43,7 @@ export default function Menu() {
       if (can("view_products")) api("/shop/products/expiry-alerts/").then((r: any) => setAlerts(r)).catch(() => {});
       if (can("manage_orders")) api<{ new: number }>("/shop/orders/summary/").then((r) => setNewOrders(r.new)).catch(() => {});
       if (can("manage_orders")) api<{ count: number }>("/shop/credit-requests/?status=requested&page_size=1").then((r) => setPendingCredit(r.count)).catch(() => {});
+      if (can("manage_shop")) api<{ count: number }>("/shop/retention/notices/?status=announced,postponed&page_size=1").then((r) => setRetentionWarning(r.count)).catch(() => {});
     }, [])
   );
 
@@ -76,6 +79,7 @@ export default function Menu() {
         {pendingCredit > 0 && card(`${pendingCredit} credit request(s)`, "Tap to review", "#b45309", "#fef3c7", () => router.push("/(shop)/creditrequests"))}
         {planWarning !== "" && card(planWarning, "Tap to renew", colors.danger, "#fee2e2", () => router.push("/(shop)/plan"))}
         {notices > 0 && card(`${notices} new notice(s) from the catalogue team`, "Tap to read", colors.danger, "#fee2e2", () => router.push("/(shop)/notifications"))}
+        {retentionWarning > 0 && card("Old bills will be archived soon", "Tap to see the date and email yourself the bills", "#b45309", "#fef3c7", () => router.push("/(shop)/retention"))}
         {expired + soon > 0 &&
           card(
             `${expired > 0 ? `${expired} product(s) expired. ` : ""}${soon > 0 ? `${soon} expiring within 30 days.` : ""}`,

@@ -38,6 +38,7 @@ services:
       EMAIL_USE_TLS: ${EMAIL_USE_TLS:-1}
       EMAIL_USE_SSL: ${EMAIL_USE_SSL:-0}
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-Kirana POS <no-reply@localhost>}
+      RETENTION_CRON_TOKEN: ${RETENTION_CRON_TOKEN:-}
     depends_on:
       db:
         condition: service_healthy
