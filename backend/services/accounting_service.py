@@ -22,6 +22,16 @@ def _plain(d):
     return format(d.normalize(), "f")
 
 
+import calendar
+PDF_EXPORT_MAX_MONTHS = 3
+
+def add_months(d, n):
+    """Same day n months later, clamped to month end (30 Nov + 3 -> 28/29 Feb)."""
+    m = d.month - 1 + n
+    y, m = d.year + m // 12, m % 12 + 1
+    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
+
+
 def parse_range(params):
     today = timezone.localdate()
     try:
@@ -31,6 +41,8 @@ def parse_range(params):
         raise BusinessRuleError("Use YYYY-MM-DD for from and to.", "invalid_date")
     if start > end or (end - start).days > 366:
         raise BusinessRuleError("Choose a range of at most one year, with from before to.", "invalid_range")
+    if params.get("export") == "pdf" and end > add_months(start, PDF_EXPORT_MAX_MONTHS):
+        raise BusinessRuleError(f"PDF export covers at most {PDF_EXPORT_MAX_MONTHS} months.", "range_too_long")
     return start, end
 
 

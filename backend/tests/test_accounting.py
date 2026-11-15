@@ -103,3 +103,12 @@ class AccountingTests(APITestCase):
         r = self.c.get(f"{API}/shop/expenses/?export=csv")
         self.assertEqual(r.status_code, 200)
         self.assertIn("Salary", r.content.decode("utf-8"))
+
+    def test_pdf_export_range_limited_to_three_months(self):
+        ok = self.c.get(f"{API}/shop/reports/profit-loss/?from=2026-01-15&to=2026-04-15&export=pdf")
+        self.assertEqual(ok.status_code, 200)
+        bad = self.c.get(f"{API}/shop/reports/profit-loss/?from=2026-01-15&to=2026-04-16&export=pdf")
+        self.assertEqual(bad.data["code"], "range_too_long")
+        # on-screen reports keep the 1-year limit
+        self.assertEqual(self.c.get(f"{API}/shop/reports/profit-loss/?from=2026-01-15&to=2026-06-15").status_code, 200)
+

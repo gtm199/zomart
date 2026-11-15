@@ -2,12 +2,14 @@ import secrets
 
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
+from django.db.models.functions import Lower
 
 
 class Shopper(models.Model):
     """A customer of the ordering app. Completely separate from shop staff (User) and from a shop's own Customer list."""
     phone = models.CharField(max_length=10, unique=True)
     name = models.CharField(max_length=150)
+    email = models.EmailField(blank=True, default="")  # used for password reset
     password = models.CharField(max_length=128)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -15,6 +17,10 @@ class Shopper(models.Model):
     # lets Django REST Framework treat a Shopper like a signed-in user
     is_authenticated = True
     is_anonymous = False
+
+    class Meta:
+        # one email per customer account (any letter case); blank is allowed
+        constraints = [models.UniqueConstraint(Lower("email"), condition=~models.Q(email=""), name="uniq_shopper_email_ci")]
 
     def set_password(self, raw):
         self.password = make_password(raw)
@@ -35,6 +41,16 @@ class ShopperToken(models.Model):
         if not self.key:
             self.key = secrets.token_hex(20)
         return super().save(*args, **kwargs)
+
+
+class ShopperPasswordResetCode(models.Model):
+    """A code emailed to the customer. Only a scrambled copy is stored."""
+    shopper = models.ForeignKey(Shopper, on_delete=models.CASCADE, related_name="+")
+    code_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    used_at = models.DateTimeField(null=True, blank=True)
 
 
 class ShopperShop(models.Model):

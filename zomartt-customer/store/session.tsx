@@ -1,8 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { api, keep, setToken } from "../services/api";
 
-export type Shopper = { id: number; name: string; phone: string };
-type Ctx = { ready: boolean; shopper: Shopper | null; signIn: (p: { token: string; shopper: Shopper }) => Promise<void>; signOut: () => Promise<void> };
+export type Shopper = { id: number; name: string; phone: string; email?: string };
+type Ctx = {
+  ready: boolean; shopper: Shopper | null;
+  signIn: (p: { token: string; shopper: Shopper }) => Promise<void>;
+  signOut: () => Promise<void>;
+  update: (s: Shopper) => Promise<void>;
+};
 const SessionContext = createContext<Ctx>(null as unknown as Ctx);
 export const useSession = () => useContext(SessionContext);
 
@@ -39,5 +44,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     await keep.del("shopper");
     setShopper(null);
   };
-  return <SessionContext.Provider value={{ ready, shopper, signIn, signOut }}>{children}</SessionContext.Provider>;
+  const update = async (s: Shopper) => {
+    setShopper(s);
+    await keep.set("shopper", JSON.stringify(s));
+  };
+  return <SessionContext.Provider value={{ ready, shopper, signIn, signOut, update }}>{children}</SessionContext.Provider>;
 }

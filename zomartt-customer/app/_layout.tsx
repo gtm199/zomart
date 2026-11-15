@@ -23,6 +23,7 @@ function Guard() {
       <Stack.Screen name="order/[id]" options={{ title: "Your order" }} />
       <Stack.Screen name="credit/[shop]" options={{ title: "My credit" }} />
       <Stack.Screen name="track/[id]" options={{ title: "Track order" }} />
+      <Stack.Screen name="reset-password" options={{ title: "Reset password" }} />
     </Stack>
   );
 }

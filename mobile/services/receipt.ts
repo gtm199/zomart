@@ -93,7 +93,7 @@ export function receiptHtml(shop: ShopInfo, d: ReceiptData) {
   </body></html>`;
 }
 
-function base64ToBytes(b64: string) {
+export function base64ToBytes(b64: string) {
   const bin: string = (globalThis as any).atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);

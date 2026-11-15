@@ -1,7 +1,7 @@
 from django.db.models import Count, Q
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -14,7 +14,7 @@ from apps.shops.models import Shop
 from apps.shops.roles import Cap
 from apps.customers.models import CustomerLedger
 from core.tenancy import ShopAccess, ShopScopedMixin
-from services import credit_service, order_service, tracking_service
+from services import credit_service, order_service, shopper_password_reset_service, tracking_service
 from services.exceptions import BusinessRuleError
 
 from .auth import ShopperTokenAuthentication
@@ -23,7 +23,8 @@ from .serializers import (AcceptSerializer, ApproveCreditSerializer, CompleteSer
                           LoginSerializer, PlaceOrderSerializer, PublicShopSerializer, ReasonSerializer,
                           RegisterSerializer, ShopperOrderSerializer, StoreProductSerializer,
                           StoreSettingsSerializer, VendorCreditSerializer, VendorOrderSerializer,
-                          CustomerOrderSerializer, ReadySerializer,LocationSerializer, SavedAddressSerializer, clean_phone)
+                          CustomerOrderSerializer, ReadySerializer,LocationSerializer, SavedAddressSerializer, clean_phone,
+                          ShopperForgotPasswordSerializer, ShopperResetPasswordSerializer, ShopperProfileSerializer)
 from .throttles import ShopperLoginThrottle
 
 
@@ -37,11 +38,15 @@ class ShopperMixin:
 
 
 # ---------------- customer: account ----------------
+def shopper_data(shopper):
+    return {"id": shopper.id, "name": shopper.name, "phone": shopper.phone, "email": shopper.email}
+
+
 def token_payload(shopper):
     token = ShopperToken.objects.create(shopper=shopper)
     for old in ShopperToken.objects.filter(shopper=shopper).order_by("-created_at")[5:]:  # keep the latest 5 phones
         old.delete()
-    return {"token": token.key, "shopper": {"id": shopper.id, "name": shopper.name, "phone": shopper.phone}}
+    return {"token": token.key, "shopper": shopper_data(shopper)}
 
 
 class ShopperRegisterView(APIView):
@@ -53,7 +58,8 @@ class ShopperRegisterView(APIView):
     def post(self, request):
         s = RegisterSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        shopper = Shopper(name=s.validated_data["name"].strip(), phone=s.validated_data["phone"])
+        shopper = Shopper(name=s.validated_data["name"].strip(), phone=s.validated_data["phone"],
+                          email=s.validated_data.get("email", ""))
         shopper.set_password(s.validated_data["password"])
         shopper.save()
         return Response(token_payload(shopper), status=status.HTTP_201_CREATED)
@@ -76,14 +82,64 @@ class ShopperLoginView(APIView):
 
 class ShopperMeView(ShopperMixin, APIView):
     def get(self, request):
-        s = request.user
-        return Response({"id": s.id, "name": s.name, "phone": s.phone})
+        return Response(shopper_data(request.user))
 
 
 class ShopperLogoutView(ShopperMixin, APIView):
     def post(self, request):
         request.auth.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ShopperForgotPasswordView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        s = ShopperForgotPasswordSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        shopper_password_reset_service.request_code(s.validated_data["email"])
+        return Response({"detail": "If that email belongs to an account, a code has been sent. It works for 15 minutes."})
+
+
+class ShopperResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        s = ShopperResetPasswordSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        shopper_password_reset_service.reset_password(d["email"], d["code"], d["new_password"])
+        return Response({"detail": "Password changed. Sign in with the new password."})
+
+
+class ShopperProfileView(ShopperMixin, APIView):
+    def get(self, request):
+        return Response(shopper_data(request.user))
+
+    def patch(self, request):
+        s = ShopperProfileSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        d = s.validated_data
+        shopper = request.user
+        if "email" in d:
+            new = d["email"].strip().lower()
+            if new != (shopper.email or "").lower():
+                # the email decides who can reset the password, so changing it needs the current password
+                if not shopper.check_password(d.get("current_password", "")):
+                    raise ValidationError({"current_password": ["Type your current password to change the email."]})
+                if new and Shopper.objects.filter(email__iexact=new).exclude(pk=shopper.pk).exists():
+                    raise ValidationError({"email": ["This email is already used by another account."]})
+                shopper.email = new
+        if d.get("name", "").strip():
+            shopper.name = d["name"].strip()
+        shopper.save()
+        return Response(shopper_data(shopper))
 
 
 # ---------------- customer: shops and products ----------------

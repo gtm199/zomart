@@ -24,7 +24,8 @@ export default function Login() {
       <Input placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
       <Err msg={err} />
       <Button title={busy ? "Please wait..." : "Sign in"} onPress={submit} disabled={busy || !phone || !password} />
-      <Link href="/(auth)/register" style={{ textAlign: "center", marginTop: 16 }}>New here? Create an account</Link>
+      <Link href="/(auth)/forgot" style={{ textAlign: "center", marginTop: 16 }}>Forgot password?</Link>
+      <Link href="/(auth)/register"style={{ textAlign: "center", marginTop: 16 }}>New here? Create an account</Link>
     </Screen>
   );
 }

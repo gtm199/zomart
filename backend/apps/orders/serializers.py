@@ -19,6 +19,7 @@ def clean_phone(value):
 class RegisterSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     phone = serializers.CharField(max_length=20)
+    email = serializers.EmailField(required=False, allow_blank=True, default="")
     password = serializers.CharField(write_only=True, min_length=6)
 
     def validate_phone(self, value):
@@ -29,10 +30,32 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError("This mobile number already has an account. Sign in instead.")
         return phone
 
+    def validate_email(self, value):
+        value = (value or "").strip().lower()
+        if value and Shopper.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("This email already has an account.")
+        return value
+
 
 class LoginSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20)
     password = serializers.CharField(write_only=True)
+
+
+class ShopperForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ShopperResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.CharField(max_length=6)
+    new_password = serializers.CharField(write_only=True)
+
+
+class ShopperProfileSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=150, required=False)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    current_password = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
 
 class PublicShopSerializer(serializers.ModelSerializer):
