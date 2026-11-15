@@ -16,8 +16,9 @@ from core.tenancy import ShopAccess, ShopScopedMixin
 from services import retention_service
 from services.exceptions import BusinessRuleError
 
-from .models import ArchivedBill, BillArchive, RetentionLog, RetentionNotice
-from .serializers import ArchiveSerializer, LogSerializer, NoticeSerializer, PolicySerializer
+from .models import ArchivedBill, BillArchive, DataArchive, RetentionLog, RetentionNotice
+from .serializers import (ArchiveSerializer, DataArchiveSerializer, LogSerializer, NoticeSerializer,
+                          PolicySerializer)
 
 N = RetentionNotice.Status
 
@@ -32,13 +33,14 @@ def _mask(email):
     return f"{name[:1]}***@{domain}"
 
 
-def _send_zip(shop, subject, body, bills):
+def _send_zip(shop, subject, body, records, head="bill"):
     if not retention_service.owner_email(shop):
-        raise BusinessRuleError("Add your email in Menu > My account first, so the bills can be sent to you.", "no_email")
-    zipped = retention_service.csv_zip_bytes(bills)
-    if not retention_service.email_owner(shop, subject, body, [("bills.zip", zipped, "application/zip")]):
+        raise BusinessRuleError("Add your email in Menu > My account first, so the records can be sent to you.", "no_email")
+    zipped = retention_service.csv_zip_bytes(records, head)
+    name = {"bill": "bills", "order": "orders", "entry": "entries"}.get(head, head + "s")
+    if not retention_service.email_owner(shop, subject, body, [(f"{name}.zip", zipped, "application/zip")]):
         raise BusinessRuleError("The email could not be sent. Please try again later.", "email_failed")
-    return Response({"sent": True, "to": _mask(retention_service.owner_email(shop)), "bills": len(bills)})
+    return Response({"sent": True, "to": _mask(retention_service.owner_email(shop)), "bills": len(records)})
 
 
 class PolicyView(APIView):
@@ -49,8 +51,12 @@ class PolicyView(APIView):
         policy = retention_service.policy_for(shop)
         data = PolicySerializer(policy).data
         data["minimum_months"] = retention_service.MIN_KEEP_MONTHS
+        data["minimums"] = {"bills_months": retention_service.MIN_KEEP_MONTHS, "audit_months": retention_service.MIN_AUDIT_MONTHS,
+                            "orders_months": retention_service.MIN_ORDER_MONTHS, "notification_days": retention_service.MIN_NOTIFICATION_DAYS}
+        data["audit_available"] = retention_service.PLANS["audit"].available()
         data["preview"] = retention_service.preview(shop)
         data["archived_bills"] = ArchivedBill.objects.filter(archive__shop=shop).count()
+        data["archived_orders"] = sum(DataArchive.objects.filter(shop=shop, category="orders").values_list("rows_count", flat=True))
         return data
 
     def get(self, request):
@@ -62,8 +68,12 @@ class PolicyView(APIView):
         s = PolicySerializer(policy, data=request.data, partial=True)
         s.is_valid(raise_exception=True)
         s.save()
-        if not policy.enabled:   # switching it off cancels any warning that is waiting
+        if not policy.enabled:   # switching it off cancels every warning that is waiting
             RetentionNotice.objects.filter(shop=request.shop, status__in=[N.ANNOUNCED, N.POSTPONED]).update(status=N.CANCELLED)
+        else:                    # switching one kind of cleanup off cancels its own warning
+            for category, flag in (("bills", policy.clean_bills), ("orders", policy.clean_orders), ("audit", policy.clean_audit)):
+                if not flag:
+                    RetentionNotice.objects.filter(shop=request.shop, category=category, status__in=[N.ANNOUNCED, N.POSTPONED]).update(status=N.CANCELLED)
         return Response(self._data(request.shop))
 
 
@@ -94,12 +104,12 @@ class NoticeViewSet(ShopScopedMixin, mixins.ListModelMixin, viewsets.GenericView
 
     @action(detail=True, methods=["post"], url_path="email-export")
     def email_export(self, request, pk=None):
-        """Email the owner every bill covered by this warning, as a spreadsheet, before anything is archived."""
+        """Email the owner everything this warning covers, as a spreadsheet, before anything is archived."""
         _owner_only(request)
         notice = self.get_object()
-        bills = retention_service.bills_of_notice(notice)
-        return _send_zip(request.shop, f"{request.shop.name}: bills covered by the retention warning",
-                         "The attached spreadsheet has one row per bill item, with each bill's totals and payments.", bills)
+        records, head = retention_service.records_of_notice(notice)
+        return _send_zip(request.shop, f"{request.shop.name}: {notice.category} covered by the retention warning",
+                         "The attached spreadsheet has one row per line, with the totals of each record.", records, head)
 
 
 class LogViewSet(ShopScopedMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -109,18 +119,34 @@ class LogViewSet(ShopScopedMixin, mixins.ListModelMixin, viewsets.GenericViewSet
 
 
 class ArchiveViewSet(ShopScopedMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    """Archived bills."""
     queryset = BillArchive.objects.all()
     serializer_class = ArchiveSerializer
     required_caps = {"*": Cap.MANAGE_SHOP}
 
     @action(detail=True, methods=["post"])
     def email(self, request, pk=None):
-        """Email the owner an archived set of bills as a spreadsheet."""
         _owner_only(request)
         archive = self.get_object()
         return _send_zip(request.shop, f"{request.shop.name}: archived bills {archive.period_from} to {archive.period_to}",
                          "The attached spreadsheet has one row per bill item, with each bill's totals and payments.",
-                         retention_service.from_archive(archive))
+                         retention_service.from_archive(archive), "bill")
+
+
+class DataArchiveViewSet(ShopScopedMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    """Archived online orders and change-history entries."""
+    queryset = DataArchive.objects.all()
+    serializer_class = DataArchiveSerializer
+    required_caps = {"*": Cap.MANAGE_SHOP}
+
+    @action(detail=True, methods=["post"])
+    def email(self, request, pk=None):
+        _owner_only(request)
+        archive = self.get_object()
+        plan = retention_service.PLANS[archive.category]
+        records = [plan.csv_shape(r) for r in retention_service.from_data_archive(archive)]
+        return _send_zip(request.shop, f"{request.shop.name}: archived {archive.category} {archive.period_from} to {archive.period_to}",
+                         "The attached spreadsheet has one row per line, with the totals of each record.", records, plan.head)
 
 
 class RunRetentionView(APIView):

@@ -7,6 +7,7 @@ router = SimpleRouter()
 router.register("shop/retention/notices", views.NoticeViewSet, basename="retention-notice")
 router.register("shop/retention/log", views.LogViewSet, basename="retention-log")
 router.register("shop/retention/archives", views.ArchiveViewSet, basename="retention-archive")
+router.register("shop/retention/data-archives", views.DataArchiveViewSet, basename="retention-data-archive")
 
 urlpatterns = [
     path("shop/retention/policy/", views.PolicyView.as_view()),

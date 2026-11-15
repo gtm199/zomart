@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { FlatList, Linking, Text, View } from "react-native";
+import { FlatList, Linking, Switch, Text, View } from "react-native";
 import { Button, Card, Err, Input, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
 import { waLink } from "../../services/receipt";
@@ -11,6 +11,7 @@ type Order = {
   delivery_address: string; note: string; payment_method: string; subtotal: string; delivery_fee: string; total: string;
   reason: string; created_at: string; items: Item[];
   rider_name: string; delivery_lat: string | null; delivery_lng: string | null;
+  retention_hold: boolean;
 };
 
 const LABEL: Record<string, string> = {
@@ -100,6 +101,11 @@ export default function Orders() {
                 {o.fulfilment === "delivery" && <Text>📍 {o.delivery_address}</Text>}
                 {o.note ? <Text>Note: {o.note}</Text> : null}
                 <Text>📞 {o.customer_phone}</Text>
+                
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                  <Text style={{ flex: 1 }}>Keep this order (dispute or refund)</Text>
+                  <Switch value={o.retention_hold} onValueChange={(v) => act(o, "hold", { hold: v })} />
+                </View>
                 
                 {o.rider_name ? <Text>🛵 Rider: {o.rider_name}</Text> : null}
                 {o.delivery_lat ? (

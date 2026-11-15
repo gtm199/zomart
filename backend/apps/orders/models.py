@@ -90,6 +90,7 @@ class Order(models.Model):
     delivery_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     delivery_pin = models.CharField(max_length=4, blank=True)   # the customer tells it to the rider; never sent to the shop or the rider
     pin_attempts = models.PositiveSmallIntegerField(default=0)
+    retention_hold = models.BooleanField(default=False)   # kept out of the automatic cleanup (a dispute or refund, for example)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

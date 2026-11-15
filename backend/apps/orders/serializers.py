@@ -118,7 +118,7 @@ class VendorOrderSerializer(ShopperOrderSerializer):
     rider_name = serializers.SerializerMethodField()
 
     class Meta(ShopperOrderSerializer.Meta):
-        fields = ShopperOrderSerializer.Meta.fields + ["customer_name", "customer_phone", "rider_name"]
+        fields = ShopperOrderSerializer.Meta.fields + ["customer_name", "customer_phone", "rider_name", "retention_hold"]
 
     def get_rider_name(self, obj):
         return (obj.rider.first_name or obj.rider.username) if obj.rider_id else ""

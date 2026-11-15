@@ -181,3 +181,8 @@ else:
 RETENTION_CRON_TOKEN = os.environ.get("RETENTION_CRON_TOKEN", "")                          # the secret the daily scheduler sends
 RETENTION_MAX_BILLS_PER_RUN = int(os.environ.get("RETENTION_MAX_BILLS_PER_RUN", "1000"))   # per shop, per day
 RETENTION_EMAIL_MAX_BILLS = int(os.environ.get("RETENTION_EMAIL_MAX_BILLS", "5000"))
+
+RETENTION_BATCH_ROWS = int(os.environ.get("RETENTION_BATCH_ROWS", "1000"))          # rows deleted at a time
+RETENTION_MAX_ROWS_PER_RUN = int(os.environ.get("RETENTION_MAX_ROWS_PER_RUN", "5000"))   # per kind of data, per shop, per day
+# Platform-wide logs (model, date column, days to keep). Add a line when you create a new log table:
+# RETENTION_LOG_RULES = [("admin.LogEntry", "action_time", 90), ("accounts.PasswordResetCode", "created_at", 30)]

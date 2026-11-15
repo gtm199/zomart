@@ -277,6 +277,12 @@ class OrderViewSet(ShopScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelM
         s.is_valid(raise_exception=True)
         return self._out(order_service.move(self.get_object().pk, request.shop, Order.Status.CANCELLED, s.validated_data["reason"]))
 
+    @action(detail=True, methods=["post"])
+    def hold(self, request, pk=None):
+        """Keep this order out of the automatic data cleanup (a dispute or refund, for example)."""
+        order = self.get_object()
+        Order.objects.filter(pk=order.pk).update(retention_hold=bool(request.data.get("hold", True)))   # update(): the order's age does not change
+        return self._out(order)
 
 class StoreSettingsView(APIView):
     permission_classes = [IsAuthenticated, ShopAccess]

@@ -27,6 +27,7 @@ export default function Orders() {
   return (
     <Screen>
       <Err msg={err} />
+      <Muted>Finished orders are kept for at least 6 months. After that the shop may remove them.</Muted>
       <FlatList
         data={rows}
         keyExtractor={(o) => String(o.id)}
