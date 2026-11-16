@@ -19,6 +19,12 @@ class ShopProduct(models.Model):
     is_enabled = models.BooleanField(default=True)
     online_visible = models.BooleanField(default=True)  # shown in the customer ordering app
     expiry_date = models.DateField(null=True, blank=True, help_text="Earliest expiry date of the stock in hand")
+    # GST (used only when the shop has GST billing ON). gst_rate NULL = not confirmed by the vendor yet.
+    # The master catalogue only *suggests* a rate/HSN; nothing ever copies it here automatically.
+    gst_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    hsn_code = models.CharField(max_length=8, blank=True)
+    price_includes_gst = models.BooleanField(default=True)
+    gst_confirmed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

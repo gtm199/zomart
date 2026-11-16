@@ -1,6 +1,6 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import { Alert, FlatList, Text, View } from "react-native";
 import { Button, Card, Err, Input, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
 import { useSession } from "../../store/session";
@@ -41,6 +41,31 @@ export default function Staff() {
     setErr("");
     try { await api(`/shop/members/${m.id}/`, { method: "PATCH", body: { is_active: !m.is_active } }); load(); } catch (e: any) { setErr(e.message); }
   };
+  const remove = (m: Member) => {
+    const who = m.full_name || m.username;
+    Alert.alert(
+      `Delete ${who}?`,
+      `${who} will be removed from your shop and signed out on every phone. They cannot sign in again.\n\n` +
+        "Bills they already made stay in your records with their name.\n\n" +
+        "Bills still waiting to upload on their phone will NOT upload after this - ask them to connect to the internet first, " +
+        "or use 'Switch off' instead if they may come back.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete", style: "destructive",
+          onPress: async () => {
+            setErr(""); setOk("");
+            try {
+              await api(`/shop/members/${m.id}/`, { method: "DELETE" });
+              setOk(`${who} was removed. You can add the same mobile number again later if needed.`);
+              load();
+            } catch (e: any) { setErr(e.message); }
+          },
+        },
+      ]
+    );
+  };
+
   const reset = async (m: Member) => {
     setErr(""); setOk("");
     try {
@@ -83,6 +108,7 @@ export default function Staff() {
                 <Button title="Cancel" kind="ghost" onPress={() => setResetFor(null)} />
               </>
             ) : <Button title="Reset password" kind="ghost" onPress={() => setResetFor(m.id)} />}
+            <Button title="Delete staff" kind="danger" onPress={() => remove(m)} />
           </Card>
         )}
       />

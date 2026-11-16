@@ -11,6 +11,10 @@ export type ShopProduct = {
   stock_qty: string; low_stock_threshold: string; is_enabled: boolean; is_low_stock: boolean; master_active: boolean;
   expiry_date: string | null; days_to_expiry: number | null; expiry_status: "expired" | "expiring_soon" | "ok" | null;
   online_visible?: boolean;
+  // Present only when the shop has GST billing switched on
+  gst_rate?: string | null; hsn_code?: string; price_includes_gst?: boolean; gst_confirmed?: boolean;
+  suggested_gst_rate?: string | null; suggested_hsn_code?: string;
+  customer_price?: string; mrp?: string | null; above_mrp?: boolean;   // what the customer pays per unit, MRP check
 };
 
 export type Customer = { id: number; name: string; phone: string; whatsapp_number: string; balance: string; credit_limit: string | null };

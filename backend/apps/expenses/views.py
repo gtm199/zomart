@@ -26,7 +26,7 @@ class ExpenseViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModelM
         qs = super().get_queryset()
         p = self.request.query_params
         if p.get("from") or p.get("to"):
-            start, end = accounting_service.parse_range(p)
+            start, end = accounting_service.parse_range(p, self.request.shop)
             qs = qs.filter(expense_date__range=(start, end))
         if p.get("category"):
             qs = qs.filter(category__name__iexact=p["category"])
@@ -67,18 +67,26 @@ class _ReportView(APIView):
 
 class ProfitLossView(_ReportView):
     def get(self, request):
-        start, end = accounting_service.parse_range(request.query_params)
+        start, end = accounting_service.parse_range(request.query_params, request.shop)
         return Response(accounting_service.profit_and_loss(request.shop, start, end))
 
 
 class SalesAnalysisView(_ReportView):
     def get(self, request):
-        start, end = accounting_service.parse_range(request.query_params)
+        start, end = accounting_service.parse_range(request.query_params, request.shop)
         data = accounting_service.sales_analysis(request.shop, start, end)
         if request.query_params.get("export") == "csv":
-            rows = [(r["product"], r["category"], r["quantity"], r["sales"], r["profit"]) for r in data["all_products"]]
-            return export_service.csv_response("sales-by-product.csv", ["product", "category", "quantity", "sales", "profit"], rows)
+            rows = [(r["product"], r["category"], r["quantity"], r["sales"], r["sales_ex_tax"], r["profit"])
+                    for r in data["all_products"]]
+            return export_service.csv_response("sales-by-product.csv", ["product", "category", "quantity", "sales",
+                                                                        "sales_excluding_tax", "profit"], rows)
         return Response(data)
+
+
+class ReportLimitsView(_ReportView):
+    """Date limits the app should offer; the server checks the same limits on every report call."""
+    def get(self, request):
+        return Response(accounting_service.report_limits(request.shop))
 
 
 class AgeingView(_ReportView):

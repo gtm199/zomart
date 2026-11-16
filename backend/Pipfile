@@ -1,0 +1,25 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "<5.3,>=5.1"
+djangorestframework = "<3.17,>=3.15"
+drf-spectacular = ">=0.27"
+gunicorn = ">=22.0"
+whitenoise = ">=6.6"
+pillow = ">=10.0"
+python-dotenv = ">=1.0"
+openpyxl = ">=3.1"
+cloudinary = ">=1.40"
+channels = ">=4.1"
+daphne = ">=0.7"
+psycopg = {extras = ["binary"], version = ">=3.1"}
+django-anymail = {extras = ["brevo"], version = "*"}
+uvicorn = {extras = ["standard"], version = ">=0.30"}
+
+[dev-packages]
+
+[requires]
+python_version = "3.13"

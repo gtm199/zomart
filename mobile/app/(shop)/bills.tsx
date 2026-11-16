@@ -3,15 +3,15 @@ import { useCallback, useState } from "react";
 import { Alert, FlatList, Linking, Text, View } from "react-native";
 import { Button, Card, Err, Input, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
-import { ReceiptData, getShopInfo, printReceipt, receiptHtml, shareReceiptPdf, toCents } from "../../services/receipt";
+import {
+  CreditNote, GstSale, ReceiptData, creditNoteHtml, getShopInfo, gstInvoiceHtml, printReceipt, receiptHtml, shareReceiptPdf, toCents,
+} from "../../services/receipt";
 import { fmtQty } from "../../services/units";
 import { useSession } from "../../store/session";
 
-type Item = { id: number; product_name: string; quantity: string; unit: string; unit_price: string; line_total: string };
-type Sale = {
-  id: number; invoice_number: string; created_at: string; total: string; amount_paid: string; amount_due: string;
-  status: string; customer_name: string; items: Item[];
-};
+type Sale = GstSale & { id: number; status: string; customer_name: string };
+
+const DOC_LABEL: Record<string, string> = { tax_invoice: "Tax invoice", bill_of_supply: "Bill of supply" };
 
 export default function Bills() {
   const { shop } = useSession();
@@ -39,7 +39,10 @@ export default function Bills() {
     lines: s.items.map((i) => ({ name: i.product_name, qty: Number(i.quantity), unit: i.unit, price: i.unit_price, totalC: toCents(i.line_total) })),
     totalC: toCents(s.total), paidC: toCents(s.amount_paid),
   });
-  const htmlFor = async (s: Sale) => receiptHtml(await getShopInfo(shop?.name ?? "Shop"), dataFor(s));
+  // GST documents are printed only from what the server saved on the bill, never from today's settings.
+  const htmlFor = async (s: Sale) =>
+    s.document_type && s.document_type !== "bill" ? gstInvoiceHtml(s) : receiptHtml(await getShopInfo(shop?.name ?? "Shop"), dataFor(s));
+  const shareCreditNote = (s: Sale, n: CreditNote) => shareReceiptPdf(creditNoteHtml(s, n), n.number).catch(fail);
   const fail = (e: any) => Alert.alert("Could not do that", String(e?.message ?? e));
 
   const sendWhatsApp = async (s: Sale) => {
@@ -58,7 +61,7 @@ export default function Bills() {
         data={sales}
         keyExtractor={(s) => String(s.id)}
         ListEmptyComponent={<Muted>No bills found.</Muted>}
-        ListFooterComponent={more ? <Button title="Load more" kind="ghost" onPress={() => load(page + 1, q)} /> : null}
+        ListFooterComponent={more ? <Button title="Load more" kind="ghost" onPress={() => load(page + 1, q)} /> : undefined}
         renderItem={({ item: s }) => (
           <Card>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
@@ -68,6 +71,7 @@ export default function Bills() {
             <Muted>
               {new Date(s.created_at).toLocaleString("en-IN")}{s.customer_name ? ` · ${s.customer_name}` : ""}
               {s.status !== "completed" ? ` · ${s.status.replace("_", " ")}` : ""}
+              {DOC_LABEL[s.document_type] ? ` · ${DOC_LABEL[s.document_type]}` : ""}
             </Muted>
             {Number(s.amount_due) > 0 && <Text style={{ color: colors.danger }}>Credit given ₹{s.amount_due}</Text>}
             {open === s.id ? (
@@ -76,7 +80,14 @@ export default function Bills() {
                   <Text key={i.id}>{i.product_name} × {fmtQty(Number(i.quantity), i.unit)} = ₹{i.line_total}</Text>
                 ))}
                 
+                {s.document_type === "tax_invoice" && (
+                  <Muted>Taxable ₹{s.taxable_total} · CGST ₹{s.cgst_total} · SGST ₹{s.sgst_total}{Number(s.igst_total) > 0 ? ` · IGST ₹${s.igst_total}` : ""}</Muted>
+                )}
+                {s.customer_gstin ? <Muted>Buyer GSTIN {s.customer_gstin}</Muted> : null}
                 <Button title="Share PDF" onPress={async () => shareReceiptPdf(await htmlFor(s), s.invoice_number).catch(fail)} />
+                {(s.credit_notes ?? []).map((n) => (
+                  <Button key={n.id} kind="ghost" title={`Credit note ${n.number} (₹${n.total}) PDF`} onPress={() => shareCreditNote(s, n)} />
+                ))}
                 <Button title="Print" kind="ghost" onPress={async () => printReceipt(await htmlFor(s)).catch(fail)} />
                 <Input placeholder="WhatsApp number (blank = customer's number)" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
                 <Button title="Send on WhatsApp" kind="ghost" onPress={() => sendWhatsApp(s)} />

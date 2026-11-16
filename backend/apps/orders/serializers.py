@@ -60,11 +60,12 @@ class ShopperProfileSerializer(serializers.Serializer):
 
 class PublicShopSerializer(serializers.ModelSerializer):
     """Only what a customer may see about a shop."""
+    online_orders = serializers.BooleanField(source="store_enabled", read_only=True)
 
     class Meta:
         model = Shop
         fields = ["id", "name", "city", "address", "phone", "upi_id", "accepts_delivery", "accepts_pickup",
-                  "delivery_fee", "free_delivery_above", "min_order", "store_note"]
+                  "delivery_fee", "free_delivery_above", "min_order", "store_note", "online_orders"]
 
 
 class StoreProductSerializer(serializers.ModelSerializer):

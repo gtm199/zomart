@@ -9,6 +9,9 @@ What is cleaned, and how:
 
 Never touched: bills (numbers, dates, totals, payments), customers, the customer ledger and balances, stock movements,
 inventory, and any order that is not finished, is on hold, or is linked to a bill that still has money owed on it.
+GST: credit notes are never cleaned. For shops with GST billing (now or in the past), bill details are kept for at least
+gst_min_months() (GST_RECORD_RETENTION_MONTHS, default 72 pending the CA's confirmation), and GST invoices, bills of
+supply and bills with credit notes inside that period are never selected, whatever the owner's setting says.
 
 Every removal asks the database first what else would be deleted with it. If anything other than the rows meant to go would
 be deleted (a cascade), the removal is cancelled and written to the log. Everything is done in small batches, once a day,
@@ -30,7 +33,7 @@ from django.core.exceptions import FieldDoesNotExist
 from django.core.mail import EmailMessage
 from django.core.management import call_command
 from django.db import router, transaction
-from django.db.models import Max, Min
+from django.db.models import Max, Min, Q
 from django.db.models.deletion import Collector, ProtectedError, RestrictedError
 from django.utils import timezone
 
@@ -42,7 +45,9 @@ from apps.shops.models import ShopMembership
 
 logger = logging.getLogger(__name__)
 
-MIN_KEEP_MONTHS = 12          # bill item details
+MIN_KEEP_MONTHS = 6           # bill item details, shops without GST (the owner may choose more; the default is 84)
+GST_FLOOR_MONTHS = 12         # GST shops never go below this, even if GST_RECORD_RETENTION_MONTHS is set lower
+DEFAULT_GST_RECORD_MONTHS = 72   # ASSUMPTION pending the CA: GST records kept at least this long (override in settings)
 MIN_AUDIT_MONTHS = 12
 MIN_ORDER_MONTHS = 6
 MIN_NOTIFICATION_DAYS = 30
@@ -100,8 +105,22 @@ def policy_for(shop):
     return policy
 
 
+def gst_min_months():
+    return max(GST_FLOOR_MONTHS, int(getattr(settings, "GST_RECORD_RETENTION_MONTHS", DEFAULT_GST_RECORD_MONTHS)))
+
+
+def is_gst_shop(shop):
+    """GST billing is on now, or the shop has ever issued a GST document (switching GST off keeps the protection)."""
+    from services.gst_report_service import has_gst_history
+    return has_gst_history(shop)
+
+
+def min_keep_months(shop):
+    return gst_min_months() if is_gst_shop(shop) else MIN_KEEP_MONTHS
+
+
 def keep_months_of(policy):
-    return max(policy.keep_months, MIN_KEEP_MONTHS)
+    return max(policy.keep_months, min_keep_months(policy.shop))
 
 
 # ---------------- copies, and the safe delete ----------------
@@ -187,6 +206,12 @@ def store_archive(shop, notice, category, records, dates, detail_count):
 def eligible(shop, cutoff):
     """Old, settled bills that have not been archived yet. Bills with money still owed, or waiting for review, stay as they are."""
     qs = Sale.objects.filter(shop=shop, created_at__lt=cutoff, retention_marker__isnull=True)
+    if is_gst_shop(shop):
+        # Second guard, independent of the shop's setting and of older warnings: GST documents and bills with credit
+        # notes inside the GST minimum period are never archived.
+        gst_cut = months_ago(timezone.now(), gst_min_months())
+        qs = qs.exclude(Q(document_type__in=("tax_invoice", "bill_of_supply")) & Q(created_at__gte=gst_cut))
+        qs = qs.exclude(credit_notes__created_at__gte=gst_cut)
     if _has(Sale, "amount_due"):
         qs = qs.filter(amount_due=0)
     if _has(Sale, "needs_review"):

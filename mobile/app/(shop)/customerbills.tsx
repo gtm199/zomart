@@ -83,7 +83,7 @@ export default function CustomerBills() {
           data={sales}
           keyExtractor={(s) => String(s.id)}
           ListEmptyComponent={<Muted>No bills yet for this customer. Select the customer while billing to see bills here.</Muted>}
-          ListFooterComponent={hasMore ? <Button title="Load more" kind="ghost" onPress={() => loadPage(page + 1)} /> : null}
+          ListFooterComponent={hasMore ? <Button title="Load more" kind="ghost" onPress={() => loadPage(page + 1)} /> : undefined}
           renderItem={({ item: s }) => (
             <Card>
               <View style={{ flexDirection: "row", justifyContent: "space-between" }}>

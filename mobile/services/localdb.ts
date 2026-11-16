@@ -3,6 +3,8 @@ import * as SQLite from "expo-sqlite";
 export type LocalProduct = {
   id: number; name: string; barcodes: string; selling_price: string; stock_qty: string;
   is_enabled: number; whole: number; pending_qty: number; unit: string; loose: number;
+  gst_rate: string | null;      // GST shops only; null = rate not confirmed yet
+  price_includes_gst: number;   // 1 = shelf price includes GST (default), 0 = GST is added on top
 };
 export type LocalCustomer = {
   id: number; name: string; phone: string; whatsapp_number: string; balance: string; is_active: number; credit_limit: string | null;
@@ -20,6 +22,8 @@ async function addMissingColumns(d: SQLite.SQLiteDatabase) {
     ["products", "unit", "TEXT NOT NULL DEFAULT 'pc'"],
     ["products", "loose", "INTEGER NOT NULL DEFAULT 0"],
     ["customers", "credit_limit", "TEXT"],
+    ["products", "gst_rate", "TEXT"],
+    ["products", "price_includes_gst", "INTEGER NOT NULL DEFAULT 1"],
   ];
   let added = false;
   for (const [table, col, def] of need) {
@@ -93,11 +97,13 @@ export async function upsertProducts(rows: any[]) {
   await d.withTransactionAsync(async () => {
     for (const r of rows) {
       await d.runAsync(
-        `INSERT INTO products (id, name, barcodes, selling_price, stock_qty, is_enabled, whole, unit, loose) VALUES (?,?,?,?,?,?,?,?,?)
+        `INSERT INTO products (id, name, barcodes, selling_price, stock_qty, is_enabled, whole, unit, loose, gst_rate, price_includes_gst)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?)
          ON CONFLICT(id) DO UPDATE SET name=excluded.name, barcodes=excluded.barcodes, selling_price=excluded.selling_price,
-           stock_qty=excluded.stock_qty, is_enabled=excluded.is_enabled, whole=excluded.whole, unit=excluded.unit, loose=excluded.loose`,
+           stock_qty=excluded.stock_qty, is_enabled=excluded.is_enabled, whole=excluded.whole, unit=excluded.unit, loose=excluded.loose,
+           gst_rate=excluded.gst_rate, price_includes_gst=excluded.price_includes_gst`,
         [r.id, r.name, "|" + r.barcodes.join("|") + "|", r.selling_price, r.stock_qty, r.is_enabled ? 1 : 0, r.whole ? 1 : 0,
-         r.unit ?? "pc", r.loose ? 1 : 0]
+         r.unit ?? "pc", r.loose ? 1 : 0, r.gst_rate ?? null, r.price_includes_gst === false ? 0 : 1]
       );
     }
   });

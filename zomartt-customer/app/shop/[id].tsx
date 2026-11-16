@@ -101,7 +101,7 @@ export default function ShopScreen() {
         onEndReachedThreshold={0.5}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={loading ? <Muted>Loading...</Muted> : <Muted>No products found.</Muted>}
-        ListFooterComponent={loading && items.length > 0 ? <Muted>Loading more...</Muted> : null}
+        ListFooterComponent={loading && items.length > 0 ? <Muted>Loading more...</Muted> : undefined}
         renderItem={({ item: p }) => {
           const n = cart.shop?.id === Number(id) ? cart.qtyOf(p.id) : 0;
           return (

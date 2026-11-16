@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { Pressable, Text } from "react-native";
+import { ColorValue, Pressable, Text } from "react-native";
 import { Button, Card, Muted, Screen, colors } from "../../components/ui";
 import { startSyncLoop } from "../../services/sync";
 import { useSession } from "../../store/session";
@@ -21,7 +21,10 @@ const hidden = (title: string) => ({
   tabBarItemStyle: { display: "none" as const },
   headerLeft: () => <BackToMenu />,
 });
-const icon = (name: any) => ({ color, size }: { color: string; size: number }) => <Ionicons name={name} size={size} color={color} />;
+// The tab bar may pass any colour value (or null); Ionicons wants a string or platform colour, never null.
+const icon = (name: any) => ({ color, size }: { color: ColorValue; size: number }) => (
+  <Ionicons name={name} size={size} color={(color ?? undefined) as string | undefined} />
+);
 
 export default function ShopTabs() {
   const { shop, refresh, signOut } = useSession();
@@ -76,6 +79,7 @@ export default function ShopTabs() {
       <Tabs.Screen name="storesettings" options={hidden("Online store")} />
       <Tabs.Screen name="creditrequests" options={hidden("Credit requests")} />
       <Tabs.Screen name="retention" options={hidden("Data retention")} />
+      <Tabs.Screen name="gstsettings" options={hidden("GST billing")} />
     </Tabs>
   );
 }

@@ -62,7 +62,7 @@ export default function SyncScreen() {
                 </Card>
               ))}
             </>
-          ) : null
+          ) : undefined
         }
         renderItem={({ item: r }) => {
           const s = JSON.parse(r.summary);

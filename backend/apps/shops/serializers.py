@@ -10,8 +10,23 @@ from .models import Shop, ShopMembership
 class ShopSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shop
-        fields = ["id", "name", "city", "address", "phone", "gstin", "allow_negative_stock", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "name", "city", "address", "phone", "gstin", "allow_negative_stock",
+                  "gst_enabled", "gst_scheme", "created_at"]
+        # GST fields change only through /shop/gst/ (owner only), never through this endpoint.
+        read_only_fields = ["id", "created_at", "gstin", "gst_enabled", "gst_scheme"]
+
+
+class ShopGstSerializer(serializers.Serializer):
+    """Input shape for PATCH /shop/gst/. Business rules live in services/gst_settings_service.py."""
+    gst_enabled = serializers.BooleanField(required=False)
+    gstin = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    gst_legal_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    gst_trade_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    gst_address = serializers.CharField(max_length=300, required=False, allow_blank=True)
+    gst_scheme = serializers.ChoiceField(choices=Shop.GstScheme.choices, required=False)
+    gst_state_code = serializers.CharField(max_length=2, required=False)
+    gst_price_mode = serializers.ChoiceField(choices=Shop.GstPriceMode.choices, required=False)
+    apply_price_mode_to_all = serializers.BooleanField(required=False, default=False)   # also change every product
 
 
 class MemberSerializer(serializers.ModelSerializer):

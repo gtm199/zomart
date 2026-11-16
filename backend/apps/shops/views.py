@@ -14,11 +14,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.tenancy import ShopAccess, ShopScopedMixin
-from services import subscription_service
+from services import gst_settings_service, staff_service, subscription_service
 
 from .models import ShopMembership, ShopNotification
 from .roles import Cap
-from .serializers import MemberCreateSerializer, MemberSerializer, MemberUpdateSerializer, ShopSerializer
+from .serializers import (MemberCreateSerializer, MemberSerializer, MemberUpdateSerializer, ShopGstSerializer,
+                          ShopSerializer)
 
 
 class ShopView(generics.RetrieveUpdateAPIView):
@@ -29,6 +30,21 @@ class ShopView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.shop
+
+class ShopGstView(APIView):
+    """GET: anyone in the shop (receipts need it). PATCH: owner only (Cap.MANAGE_GST)."""
+    permission_classes = [IsAuthenticated, ShopAccess]
+    required_caps = {"get": Cap.VIEW_SHOP, "patch": Cap.MANAGE_GST}
+
+    def get(self, request):
+        return Response(gst_settings_service.settings_payload(request.shop))
+
+    def patch(self, request):
+        s = ShopGstSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        shop = gst_settings_service.update_gst_settings(shop=request.shop, user=request.user, data=s.validated_data)
+        return Response(gst_settings_service.settings_payload(shop))
+
 
 class SubscriptionView(APIView):
     permission_classes = [IsAuthenticated, ShopAccess]
@@ -70,7 +86,7 @@ class MemberViewSet(ShopScopedMixin, mixins.ListModelMixin, mixins.CreateModelMi
                     mixins.UpdateModelMixin, viewsets.GenericViewSet):
     queryset = ShopMembership.objects.select_related("user").order_by("id")
     required_caps = {"*": Cap.MANAGE_MEMBERS}
-    http_method_names = ["get", "post", "patch", "head", "options"]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -93,6 +109,10 @@ class MemberViewSet(ShopScopedMixin, mixins.ListModelMixin, mixins.CreateModelMi
         s.is_valid(raise_exception=True)
         s.save()
         return Response(MemberSerializer(member).data)
+
+    def destroy(self, request, *args, **kwargs):
+        """Removes the person from this shop (owner only, via Cap.MANAGE_MEMBERS). See services/staff_service.py."""
+        return Response(staff_service.remove_member(shop=request.shop, actor=request.user, membership_id=kwargs["pk"]))
 
     @action(detail=True, methods=["post"], url_path="set-password")
     def set_password(self, request, pk=None):

@@ -57,7 +57,12 @@ class SyncView(APIView):
                 "image": picture(request, p.master_product),
                 "unit": p.master_product.unit,
                 "loose": p.master_product.is_loose,
+                # GST shops only: lets the phone block unrated products and add tax-on-top prices offline
+                **({"gst_rate": None if p.gst_rate is None else str(p.gst_rate),
+                    "price_includes_gst": p.price_includes_gst} if request.shop.gst_enabled else {}),
             } for p in products],
+            "gst": ({"enabled": True, "scheme": request.shop.gst_scheme, "state_code": request.shop.gst_state_code}
+                    if request.shop.gst_enabled else {"enabled": False}),
             "customers": [{
                 "id": c.id, "name": c.name, "phone": c.phone, "whatsapp_number": c.whatsapp_number,
                 "balance": str(c.balance), "is_active": c.is_active,

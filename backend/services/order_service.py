@@ -131,7 +131,7 @@ def _place(shopper, shop_id, items, fulfilment, address, note, payment_method, c
             raise BusinessRuleError(f"{master.display_name} is sold in whole pieces.", "invalid_quantity")
         if sp.stock_qty < quantity and not shop.allow_negative_stock:
             raise BusinessRuleError(f"{master.display_name} is out of stock for that quantity.", "out_of_stock")
-        line_total = money(sp.selling_price * quantity)
+        line_total = billing_service.customer_line_total(shop, sp, quantity)
         subtotal += line_total
         lines.append((sp, master, quantity, line_total))
     if subtotal < shop.min_order:
@@ -207,7 +207,9 @@ def accept(order_id, shop, adjustments=None):
             item.delete()
             changed = True
         else:
-            item.quantity, item.line_total = new_qty, money(item.unit_price * new_qty)
+            item.quantity = new_qty
+            item.line_total = billing_service.customer_line_total(shop, item.shop_product, new_qty,
+                                                                  price=item.unit_price, strict=False)
             item.save(update_fields=["quantity", "line_total"])
     if not items:
         order.status, order.reason = S.REJECTED, "The shop could not supply any of the items"
@@ -264,9 +266,9 @@ def complete(order_id, shop, user, payment_method):
     else:
         if payment_method not in ("cash", "upi"):
             raise BusinessRuleError("Choose cash or UPI.", "invalid_payment")
+        # One payment of exactly the bill total (the same GST maths as a counter bill decides the total).
         sale, _ = billing_service.create_sale(
-            shop=shop, user=user, client_txn_id=sale_id, items=items,
-            payments=[{"method": payment_method, "amount": order.subtotal}],
+            shop=shop, user=user, client_txn_id=sale_id, items=items, payments=[], pay_full_with=payment_method,
             customer_id=None, notes=f"Online order #{order.number}", offline=True)
         order.payment_method = payment_method
     order.sale, order.status = sale, S.COMPLETED

@@ -19,6 +19,9 @@ class Purchase(models.Model):
     amount_due = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     due_reversed = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     notes = models.CharField(max_length=255, blank=True)
+    # GST shops only (optional): as printed on the supplier's bill. Recorded for input-tax totals; no ITC filing logic.
+    supplier_gstin = models.CharField(max_length=15, blank=True)
+    gst_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -39,3 +42,6 @@ class PurchaseItem(models.Model):
     unit_cost = models.DecimalField(max_digits=10, decimal_places=2)
     line_total = models.DecimalField(max_digits=12, decimal_places=2)
     returned_qty = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    # GST shops only (optional): the part of line_total shown as GST on the supplier's bill
+    gst_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    gst_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)

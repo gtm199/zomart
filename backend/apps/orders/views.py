@@ -28,8 +28,14 @@ from .serializers import (AcceptSerializer, ApproveCreditSerializer, CompleteSer
 from .throttles import ShopperLoginThrottle
 
 
+def listed_shops():
+    """Shops a customer can find and add to "My shops": every active, approved shop, whether or not it takes online
+    orders yet. Ordering, products and credit still need open_shops()."""
+    return Shop.objects.filter(is_active=True, is_approved=True)
+
+
 def open_shops():
-    return Shop.objects.filter(store_enabled=True, is_active=True, is_approved=True)
+    return listed_shops().filter(store_enabled=True)
 
 
 class ShopperMixin:
@@ -148,13 +154,17 @@ class ShopListView(ShopperMixin, ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        qs = open_shops().order_by("name")
         p = self.request.query_params
-        if p.get("code"):
-            return qs.filter(store_code=p["code"].strip().upper())
+        if p.get("code"):   # a shop code exists only while the shop takes online orders
+            return open_shops().filter(store_code=p["code"].strip().upper())
+        qs = listed_shops().order_by("-store_enabled", "name", "id")
         if p.get("search"):
             term = p["search"].strip()
-            qs = qs.filter(Q(name__icontains=term) | Q(city__icontains=term) | Q(address__icontains=term))
+            match = Q(name__icontains=term) | Q(city__icontains=term) | Q(address__icontains=term)
+            digits = "".join(ch for ch in term if ch.isdigit())
+            if len(digits) >= 4:   # find a shop by its mobile number too (tells same-name shops apart)
+                match |= Q(phone__contains=digits[-10:])
+            qs = qs.filter(match)
         return qs[:30]
 
 
@@ -167,12 +177,13 @@ class ShopDetailView(ShopperMixin, RetrieveAPIView):
 
 class MyShopsView(ShopperMixin, APIView):
     def get(self, request):
-        shops = open_shops().filter(pk__in=ShopperShop.objects.filter(shopper=request.user).values("shop_id"))
+        shops = (listed_shops().filter(pk__in=ShopperShop.objects.filter(shopper=request.user).values("shop_id"))
+                 .order_by("-store_enabled", "name", "id"))
         return Response(PublicShopSerializer(shops, many=True).data)
 
     def post(self, request):
         shop_id = request.data.get("shop")
-        shop = open_shops().filter(pk=shop_id).first() if str(shop_id).isdigit() else None
+        shop = listed_shops().filter(pk=shop_id).first() if str(shop_id).isdigit() else None
         if shop is None:
             raise NotFound("Shop not found.")
         ShopperShop.objects.get_or_create(shopper=request.user, shop=shop)

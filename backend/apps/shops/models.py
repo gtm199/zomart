@@ -31,10 +31,32 @@ class Shop(models.Model):
     is_approved = models.BooleanField(default=True)
     payment_code = models.CharField(max_length=20, blank=True)  # the shop writes this in the UPI note
     pay_paise = models.PositiveSmallIntegerField(default=0)     # extra paise added to this shop's amount
+
+    # --- Optional GST billing (owner-only settings; see services/gst_settings_service.py) ---
+    class GstScheme(models.TextChoices):
+        REGULAR = "regular", "Regular (tax invoice)"
+        COMPOSITION = "composition", "Composition (bill of supply)"
+
+    gst_enabled = models.BooleanField(default=False)
+    gst_enabled_at = models.DateTimeField(null=True, blank=True)  # last time it was switched on; older bills never change
+    gst_legal_name = models.CharField(max_length=150, blank=True)
+    gst_trade_name = models.CharField(max_length=150, blank=True)
+    gst_address = models.CharField(max_length=300, blank=True)    # address printed on GST invoices
+    gst_scheme = models.CharField(max_length=12, choices=GstScheme.choices, default=GstScheme.REGULAR)
+    gst_state_code = models.CharField(max_length=2, default="07")  # place of supply of the shop (Delhi)
+
+    class GstPriceMode(models.TextChoices):
+        INCLUSIVE = "inclusive", "Prices include GST (MRP style)"
+        EXCLUSIVE = "exclusive", "GST is added on top of prices"
+
+    # Shop-wide default for how selling prices are entered. Each product can still differ (ShopProduct.price_includes_gst).
+    gst_price_mode = models.CharField(max_length=9, choices=GstPriceMode.choices, default=GstPriceMode.INCLUSIVE)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.name
+        # Shop names are NOT unique (two real shops may share one), so every label carries the shop's own number and
+        # mobile. Used by the admin's lists and dropdowns. Customer-facing text uses shop.name directly.
+        return f"{self.name} (#{self.pk}{' · ' + self.phone if self.phone else ''})"
 
     class Meta:
             constraints = [models.UniqueConstraint(fields=["store_code"], condition=~models.Q(store_code=""),
@@ -75,3 +97,16 @@ class ShopNotification(models.Model):
     class Meta:
         ordering = ["-created_at", "-id"]
         indexes = [models.Index(fields=["shop", "read_at"])]
+
+
+class ShopGstChange(models.Model):
+    """Audit trail of GST switch on/off and scheme changes. Stores no GSTIN."""
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="gst_changes")
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    gst_enabled = models.BooleanField()
+    gst_scheme = models.CharField(max_length=12)
+    gstin_changed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]

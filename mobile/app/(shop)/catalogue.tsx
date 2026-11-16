@@ -107,7 +107,7 @@ export default function Catalogue() {
         }
         ListFooterComponent={
           loading && items.length > 0 ? <Muted>Loading more...</Muted>
-          : hasMore ? <Button title="Load more" kind="ghost" onPress={loadMore} /> : null
+          : hasMore ? <Button title="Load more" kind="ghost" onPress={loadMore} /> : undefined
         }
         renderItem={({ item: m }) => (
           <Card>

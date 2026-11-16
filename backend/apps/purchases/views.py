@@ -41,9 +41,9 @@ class PurchaseViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModel
         purchase, created = purchase_service.create_purchase(
             shop=request.shop, user=request.user, client_txn_id=d["client_txn_id"], supplier_id=d["supplier"],
             items=d["items"], payments=d["payments"], invoice_number=d["invoice_number"],
-            purchase_date=d["purchase_date"], notes=d["notes"])
+            purchase_date=d["purchase_date"], notes=d["notes"], supplier_gstin=d["supplier_gstin"])
         purchase = self.get_queryset().get(pk=purchase.pk)
-        return Response(PurchaseSerializer(purchase).data,
+        return Response(PurchaseSerializer(purchase, context=self.get_serializer_context()).data,
                         status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"], url_path="return")
@@ -53,7 +53,7 @@ class PurchaseViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModel
         s.is_valid(raise_exception=True)
         purchase_service.return_purchase(shop=request.shop, user=request.user, purchase_id=purchase.pk,
                                          **s.validated_data)
-        return Response(PurchaseSerializer(self.get_queryset().get(pk=purchase.pk)).data)
+        return Response(PurchaseSerializer(self.get_queryset().get(pk=purchase.pk), context=self.get_serializer_context()).data)
 
 
 class StockValuationView(APIView):

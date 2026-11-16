@@ -4,6 +4,8 @@ import { FlatList, Switch, Text, View } from "react-native";
 import CategoryChips, { Category } from "../../components/CategoryChips";
 import { Button, Card, Err, Input, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
+import { hsnError } from "../../services/gst";
+import { refreshAfterGstChange } from "../../services/sync";
 import { ShopProduct } from "../../types";
 import ProductImage from "../../components/ProductImage";
 
@@ -37,6 +39,13 @@ export default function Stock() {
   const [addQty, setAddQty] = useState("");
   const [err, setErr] = useState("");
   const [online, setOnline] = useState(true);
+  // GST (only shown when the shop has GST billing on; the server decides)
+  const [gstOn, setGstOn] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [needRateOnly, setNeedRateOnly] = useState(false);
+  const [gstRate, setGstRate] = useState("");
+  const [hsn, setHsn] = useState("");
+  const [inclGst, setInclGst] = useState(true);
   const requestId = useRef(0);
 
   const catId = sub ?? top; // 0 means "No category"
@@ -45,7 +54,7 @@ export default function Stock() {
     const id = ++requestId.current;
     setLoading(true);
     try {
-      const path = `/shop/products/?search=${encodeURIComponent(q)}&page=${p}${lowOnly ? "&low_stock=true" : ""}${expiringOnly ? "&expiring=true" : ""}${catId !== null ? `&category=${catId}` : ""}`;
+      const path = `/shop/products/?search=${encodeURIComponent(q)}&page=${p}${lowOnly ? "&low_stock=true" : ""}${expiringOnly ? "&expiring=true" : ""}${catId !== null ? `&category=${catId}` : ""}${gstOn && needRateOnly ? "&gst_unconfirmed=true" : ""}`;
       const r = await api<PageResp>(path);
       if (id !== requestId.current) return; // a newer search started, ignore this late answer
       setItems((prev) => (p === 1 ? r.results : [...prev, ...r.results]));
@@ -59,12 +68,15 @@ export default function Stock() {
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, [q, lowOnly, expiringOnly, catId]);
+  }, [q, lowOnly, expiringOnly, catId, gstOn, needRateOnly]);
 
   // Categories of my own products (reloaded whenever the screen comes into view).
   useFocusEffect(
     useCallback(() => {
       api<Category[]>("/shop/products/categories/").then(setCategories).catch(() => {});
+      api<{ gst_enabled: boolean; gst_rate_suggestions: string[] }>("/shop/gst/")
+        .then((g) => { setGstOn(g.gst_enabled); setSuggestions(g.gst_rate_suggestions ?? []); })
+        .catch(() => {});
     }, [])
   );
 
@@ -88,6 +100,9 @@ export default function Stock() {
     setCost(sp.purchase_cost ?? "");
     setExpiry(sp.expiry_date ?? "");
     setOnline(sp.online_visible !== false);
+    setGstRate(sp.gst_rate ?? "");
+    setHsn(sp.hsn_code ?? "");
+    setInclGst(sp.price_includes_gst !== false);
     setAddQty("");
     setErr("");
   };
@@ -105,12 +120,25 @@ export default function Stock() {
       if (sp.purchase_cost !== undefined && cost && cost !== sp.purchase_cost) body.purchase_cost = cost;
       if (expiry !== (sp.expiry_date ?? "")) body.expiry_date = expiry === "" ? null : expiry;
       if (online !== (sp.online_visible !== false)) body.online_visible = online;
+      let gstChanged = false;
+      if (sp.gst_rate !== undefined) {   // GST shop: the server sent GST fields
+        const bad = hsnError(hsn.trim());
+        if (bad) { setErr(bad); return; }
+        if (gstRate.trim() !== (sp.gst_rate ?? "")) {
+          if (gstRate.trim() !== "" && !(Number(gstRate) >= 0 && Number(gstRate) <= 100)) { setErr("GST rate must be between 0 and 100."); return; }
+          body.gst_rate = gstRate.trim() === "" ? null : gstRate.trim();
+          gstChanged = true;
+        }
+        if (hsn.trim() !== (sp.hsn_code ?? "")) body.hsn_code = hsn.trim();
+        if (inclGst !== (sp.price_includes_gst !== false)) { body.price_includes_gst = inclGst; gstChanged = true; }
+      }
       if (Object.keys(body).length > 0) {
         await api(`/shop/products/${sp.id}/`, { method: "PATCH", body });
       }
       if (addQty) {
         await api(`/shop/products/${sp.id}/adjust-stock/`, { body: { quantity_delta: addQty, movement_type: "purchase" } });
       }
+      if (gstChanged) refreshAfterGstChange(); // the billing screen must see the new rate, also offline
       const fresh = await api<ShopProduct>(`/shop/products/${sp.id}/`); // refresh only this product, keep your place in the list
       setItems((prev) => prev.map((x) => (x.id === fresh.id ? fresh : x)));
       setAlerts(await api("/shop/products/expiry-alerts/"));
@@ -141,6 +169,13 @@ export default function Stock() {
         <Text> Low stock   </Text>
         <Switch value={expiringOnly} onValueChange={setExpiringOnly} />
         <Text> Expiring soon</Text>
+        {gstOn && (
+          <>
+            <Text>   </Text>
+            <Switch value={needRateOnly} onValueChange={setNeedRateOnly} />
+            <Text> Needs GST rate</Text>
+          </>
+        )}
       </View>
       {count > 0 && <Muted>{chosenName ? `${chosenName}: ` : ""}showing {items.length} of {count} products</Muted>}
       <Err msg={err} />
@@ -154,7 +189,7 @@ export default function Stock() {
         ListEmptyComponent={loading ? <Muted>Loading...</Muted> : <Muted>No products found.</Muted>}
         ListFooterComponent={
           loading && items.length > 0 ? <Muted>Loading more...</Muted>
-          : hasMore ? <Button title="Load more" kind="ghost" onPress={loadMore} /> : null
+          : hasMore ? <Button title="Load more" kind="ghost" onPress={loadMore} /> : undefined
         }
         renderItem={({ item: sp }) => {
           const ex = expiryLine(sp);
@@ -173,6 +208,16 @@ export default function Stock() {
               </View>
               {ex && <Text style={{ color: ex.color, fontWeight: sp.expiry_status === "ok" ? "400" : "700" }}>{ex.text}</Text>}
               {!sp.master_active && <Text style={{ color: colors.danger, fontWeight: "700" }}>Removed from catalogue: cannot be sold</Text>}
+              {sp.gst_rate !== undefined && (
+                sp.gst_rate === null
+                  ? <Text style={{ color: WARN, fontWeight: "700" }}>GST rate not set: cannot be billed yet</Text>
+                  : <Muted>GST {sp.gst_rate}%{sp.hsn_code ? ` · HSN ${sp.hsn_code}` : ""} · {sp.price_includes_gst === false ? "GST added on top" : "price includes GST"} · customer pays ₹{sp.customer_price}</Muted>
+              )}
+              {sp.above_mrp && (
+                <Text style={{ color: colors.danger, fontWeight: "700" }}>
+                  Customer pays ₹{sp.customer_price}, above the MRP ₹{sp.mrp}. Packaged goods cannot be sold above MRP - lower the price or include GST in it.
+                </Text>
+              )}
               {open === sp.id ? (
                 <>
                   <Muted>Selling price (₹)</Muted>
@@ -189,13 +234,37 @@ export default function Stock() {
                     <Text>Show in the customer ordering app</Text>
                     <Switch value={online} onValueChange={setOnline} />
                   </View>
+                  {sp.gst_rate !== undefined && (
+                    <>
+                      <Muted>GST rate % (you confirm it; blank = not set)</Muted>
+                      <Input placeholder="e.g. 5" keyboardType="decimal-pad" value={gstRate} onChangeText={setGstRate} />
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                        {suggestions.map((r) => (
+                          <Button key={r} title={`${r}%`} kind={gstRate !== "" && Number(gstRate) === Number(r) ? "primary" : "ghost"} onPress={() => setGstRate(r)} />
+                        ))}
+                      </View>
+                      {sp.suggested_gst_rate ? (
+                        <Muted>Catalogue suggests {sp.suggested_gst_rate}%{sp.suggested_hsn_code ? `, HSN ${sp.suggested_hsn_code}` : ""}. Check it is right for your product before using it.</Muted>
+                      ) : null}
+                      {sp.suggested_gst_rate && gstRate === "" ? (
+                        <Button title={`Use ${sp.suggested_gst_rate}%${sp.suggested_hsn_code ? ` and HSN ${sp.suggested_hsn_code}` : ""}`} kind="ghost"
+                          onPress={() => { setGstRate(sp.suggested_gst_rate ?? ""); if (!hsn && sp.suggested_hsn_code) setHsn(sp.suggested_hsn_code); }} />
+                      ) : null}
+                      <Muted>HSN code (4, 6 or 8 digits, optional)</Muted>
+                      <Input placeholder="e.g. 1006" keyboardType="number-pad" value={hsn} onChangeText={setHsn} />
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                        <Text style={{ flex: 1 }}>{inclGst ? "Selling price includes GST (MRP style)" : "GST is added on top of the selling price"}</Text>
+                        <Switch value={inclGst} onValueChange={setInclGst} />
+                      </View>
+                    </>
+                  )}
                   <Muted>Stock received (+)</Muted>
                   <Input placeholder="0" keyboardType="decimal-pad" value={addQty} onChangeText={setAddQty} />
                   <Button title="Save" onPress={() => save(sp)} />
                   <Button title="Cancel" kind="ghost" onPress={() => setOpen(null)} />
                 </>
               ) : (
-                <Button title="Edit price / cost / expiry / stock" kind="ghost" onPress={() => startEdit(sp)} />
+                <Button title={sp.gst_rate !== undefined ? "Edit price / GST / cost / expiry / stock" : "Edit price / cost / expiry / stock"} kind="ghost" onPress={() => startEdit(sp)} />
               )}
             </Card>
           );

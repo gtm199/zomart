@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 
 from apps.shops.roles import Cap
 from core.tenancy import ShopAccess, ShopScopedMixin
-from services import billing_service, receipt_service, report_service
+from services import billing_service, gst_report_service, receipt_service, report_service
 
 from .models import Sale
 from .serializers import CheckoutSerializer, ReturnSerializer, SaleSerializer
@@ -19,7 +19,8 @@ from django.db.models import Q
 
 class SaleViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModelMixin,
                   mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    queryset = Sale.objects.select_related("customer", "shop").prefetch_related("items", "payments")
+    queryset = Sale.objects.select_related("customer", "shop").prefetch_related(
+        "items", "payments", "credit_notes__items")
     serializer_class = SaleSerializer
     required_caps = {"list": Cap.VIEW_SALES, "retrieve": Cap.VIEW_SALES, "receipt": Cap.VIEW_SALES,
                      "create": Cap.SELL, "return_items": Cap.REFUND}
@@ -49,7 +50,9 @@ class SaleViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModelMixi
         sale, created = billing_service.create_sale(
             shop=request.shop, user=request.user, client_txn_id=d["client_txn_id"], items=d["items"],
             payments=d["payments"], customer_id=d["customer"], notes=d["notes"],
-            offline=d["offline"], client_created_at=d["client_created_at"])
+            offline=d["offline"], client_created_at=d["client_created_at"],
+            customer_gstin=d["customer_gstin"], customer_gst_name=d["customer_gst_name"],
+            gst_strict=not d["offline"])
         sale = self.get_queryset().get(pk=sale.pk)
         # 201 for a new sale, 200 when this exact client_txn_id was already processed (safe retry)
         return Response(SaleSerializer(sale).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
@@ -68,6 +71,19 @@ class SaleViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListModelMixi
         text = receipt_service.build_receipt_text(sale)
         phone = request.query_params.get("phone")
         return Response({"text": text, "whatsapp_url": receipt_service.whatsapp_url(sale, text, phone)})
+
+
+class GstReportView(APIView):
+    """GST summaries for a date range (max 12 months). Owner and manager only; always this shop's data only."""
+    permission_classes = [IsAuthenticated, ShopAccess]
+    required_caps = {"get": Cap.VIEW_GST_REPORTS}
+
+    def get(self, request):
+        start, end = gst_report_service.parse_gst_range(request.shop, request.query_params)
+        period = request.query_params.get("period")
+        if period not in (None, "day", "month"):
+            raise ValidationError({"period": "Use day or month."})
+        return Response(gst_report_service.gst_report(request.shop, start, end, period))
 
 
 class DailySummaryView(APIView):

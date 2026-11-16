@@ -19,7 +19,7 @@ export const Err = ({ msg }: { msg: string }) => (msg ? <Text style={{ color: co
 
 /** Put this around the scrolling part of a screen. The keyboard then pushes the content up instead of covering it. */
 export function KeyboardAware({ children }: { children: React.ReactNode }) {
-  const ref = useRef<View>(null);
+  const ref = useRef<React.ComponentRef<typeof View>>(null);
   const [top, setTop] = useState(0); // how far this area is from the top of the phone's screen
   return (
     <View ref={ref} style={{ flex: 1 }} onLayout={() => ref.current?.measureInWindow((_x, y) => setTop(y))}>

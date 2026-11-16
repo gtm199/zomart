@@ -10,13 +10,14 @@ from apps.purchases.models import Purchase, PurchaseItem
 from apps.suppliers.models import Supplier, SupplierLedger, SupplierPayment
 from services import inventory_service, supplier_service
 from services.exceptions import BusinessRuleError
+from services.gstin import is_valid_gstin
 from services.money import money, qty
 
 ALLOWED_METHODS = {"cash", "upi"}
 
 
 def create_purchase(*, shop, user, client_txn_id, supplier_id, items, payments, invoice_number="",
-                    purchase_date=None, notes=""):
+                    purchase_date=None, notes="", supplier_gstin=""):
     """Idempotent on (shop, client_txn_id). Returns (purchase, created)."""
     existing = Purchase.objects.filter(shop=shop, client_txn_id=client_txn_id).first()
     if existing:
@@ -24,7 +25,7 @@ def create_purchase(*, shop, user, client_txn_id, supplier_id, items, payments, 
     try:
         with transaction.atomic():
             purchase = _create(shop, user, client_txn_id, supplier_id, items, payments, invoice_number,
-                               purchase_date, notes)
+                               purchase_date, notes, supplier_gstin)
     except IntegrityError:
         existing = Purchase.objects.filter(shop=shop, client_txn_id=client_txn_id).first()
         if existing:
@@ -33,7 +34,8 @@ def create_purchase(*, shop, user, client_txn_id, supplier_id, items, payments, 
     return purchase, True
 
 
-def _create(shop, user, client_txn_id, supplier_id, items, payments, invoice_number, purchase_date, notes):
+def _create(shop, user, client_txn_id, supplier_id, items, payments, invoice_number, purchase_date, notes,
+            supplier_gstin=""):
     supplier = Supplier.objects.select_for_update().filter(shop=shop, pk=supplier_id, is_active=True).first()
     if supplier is None:
         raise BusinessRuleError("Supplier not found in this shop.", "supplier_not_found")
@@ -48,7 +50,12 @@ def _create(shop, user, client_txn_id, supplier_id, items, payments, invoice_num
         for p in ShopProduct.objects.select_for_update(of=("self",)).select_related("master_product__brand")
         .filter(shop=shop, pk__in=sorted(ids))
     }
-    lines, total = [], Decimal("0")
+    gst_input = bool(supplier_gstin) or any(row.get("gst_amount") or row.get("gst_rate") is not None for row in items)
+    if gst_input and not shop.gst_enabled:
+        raise BusinessRuleError("GST details on purchases are for shops with GST billing switched on.", "gst_not_enabled")
+    if shop.gst_enabled and not supplier_gstin and is_valid_gstin(supplier.gstin):
+        supplier_gstin = supplier.gstin.strip().upper()   # the supplier's saved GSTIN, when it is well formed
+    lines, total, gst_total = [], Decimal("0"), Decimal("0")
     for row in items:
         sp = products.get(row["shop_product"])
         if sp is None:
@@ -60,8 +67,13 @@ def _create(shop, user, client_txn_id, supplier_id, items, payments, invoice_num
         if sp.master_product.unit == MasterProduct.Unit.PIECE and quantity != quantity.to_integral_value():
             raise BusinessRuleError(f"{sp.master_product.display_name} is counted in whole pieces.", "invalid_quantity")
         line_total = money(quantity * unit_cost)
+        gst_amount = money(row.get("gst_amount") or 0)
+        if gst_amount < 0 or gst_amount > line_total:
+            raise BusinessRuleError(f"{sp.master_product.display_name}: GST amount must be between 0 and the line total.",
+                                    "invalid_gst_amount")
         total += line_total
-        lines.append((sp, quantity, unit_cost, line_total, row.get("expiry_date")))
+        gst_total += gst_amount
+        lines.append((sp, quantity, unit_cost, line_total, row.get("expiry_date"), row.get("gst_rate"), gst_amount))
 
     paid, pay_rows = Decimal("0"), []
     for p in payments:
@@ -77,10 +89,11 @@ def _create(shop, user, client_txn_id, supplier_id, items, payments, invoice_num
     purchase = Purchase.objects.create(
         shop=shop, supplier=supplier, invoice_number=invoice_number, client_txn_id=client_txn_id,
         purchase_date=purchase_date or timezone.localdate(), total=total, amount_paid=paid, amount_due=due,
-        notes=notes, created_by=user)
-    for sp, quantity, unit_cost, line_total, expiry in lines:
+        notes=notes, created_by=user, supplier_gstin=supplier_gstin if shop.gst_enabled else "", gst_total=gst_total)
+    for sp, quantity, unit_cost, line_total, expiry, gst_rate, gst_amount in lines:
         PurchaseItem.objects.create(purchase=purchase, shop_product=sp, product_name=sp.master_product.display_name,
-                                    quantity=quantity, unit_cost=unit_cost, line_total=line_total)
+                                    quantity=quantity, unit_cost=unit_cost, line_total=line_total,
+                                    gst_rate=gst_rate, gst_amount=gst_amount)
         inventory_service.apply_movement(
             shop_product_id=sp.pk, delta=quantity, movement_type=StockMovement.Type.PURCHASE, user=user,
             reference_type="purchase", reference_id=purchase.pk,

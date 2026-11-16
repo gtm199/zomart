@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.contrib import admin, messages
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Exists, Max, OuterRef, Prefetch, Q
 from django.utils import timezone
 
 from services import subscription_service
@@ -24,20 +24,53 @@ class QuietFilter(admin.SimpleListFilter):
         return qs
 
 
+class OwnerFilter(admin.SimpleListFilter):
+    title = "owner"
+    parameter_name = "owner"
+
+    def lookups(self, request, model_admin):
+        return [("none", "No owner (nobody can sign in)")]
+
+    def queryset(self, request, qs):
+        if self.value() == "none":
+            return qs.filter(has_owner=False)
+        return qs
+
+
 @admin.register(Shop)
 class ShopAdmin(admin.ModelAdmin):
-    list_display = ("name", "city", "phone", "is_approved", "plan", "expires", "bills_7d", "last_bill", "payment_code")
-    list_filter = ("is_approved", "is_active", QuietFilter)
-    search_fields = ("name", "phone", "payment_code")
+    # Shop names are not unique: the id, owner and mobile tell two shops with the same name apart.
+    list_display = ("id", "name", "owner", "owner_mobile", "city", "phone", "is_approved", "plan", "expires", "bills_7d",
+                    "last_bill", "payment_code", "created_at")
+    list_display_links = ("id", "name")
+    list_filter = ("is_approved", "is_active", OwnerFilter, QuietFilter)
+    search_fields = ("=id", "name", "phone", "address", "payment_code", "store_code",
+                     "memberships__user__username", "memberships__user__phone", "memberships__user__first_name")
     actions = ["approve_shops", "switch_off", "switch_on"]
 
     def get_queryset(self, request):
         week = timezone.now() - timedelta(days=7)
+        owners = ShopMembership.objects.filter(role=ShopMembership.Role.OWNER).select_related("user")
         return super().get_queryset(request).annotate(
             bills_7d=Count("sales", filter=Q(sales__created_at__gte=week), distinct=True),
             last_bill=Max("sales__created_at"),
             expiry=Max("subscriptions__expires_on"),
-        )
+            has_owner=Exists(ShopMembership.objects.filter(shop=OuterRef("pk"), role=ShopMembership.Role.OWNER)),
+        ).prefetch_related(Prefetch("memberships", queryset=owners, to_attr="owner_memberships"))
+
+    def _owner(self, obj):
+        rows = getattr(obj, "owner_memberships", None)
+        return rows[0].user if rows else None
+
+    @admin.display(description="Owner")
+    def owner(self, obj):
+        user = self._owner(obj)
+        return (user.first_name or user.username) if user else "NO OWNER"
+
+    @admin.display(description="Owner mobile")
+    def owner_mobile(self, obj):
+        user = self._owner(obj)
+        return (user.phone or user.username) if user else "-"
 
     @admin.display(ordering="bills_7d", description="Bills (7 days)")
     def bills_7d(self, obj):

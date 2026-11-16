@@ -22,6 +22,7 @@ const ITEMS = [
   { title: "Online store", subtitle: "Turn on ordering, delivery and pickup", icon: "storefront-outline", path: "/(shop)/storesettings", cap: "manage_shop" },
   { title: "Credit requests", subtitle: "Customers asking for credit (khata)", icon: "card-outline", path: "/(shop)/creditrequests", cap: "manage_orders" },
   { title: "Data retention", subtitle: "Old bill details, warnings and the cleanup log", icon: "archive-outline", path: "/(shop)/retention", cap: "manage_shop" },
+  { title: "GST billing", subtitle: "Switch GST on or off, GSTIN, scheme (owner only)", icon: "document-text-outline", path: "/(shop)/gstsettings", cap: "manage_gst" },
 ] as const;
 
 type Plan = { write_allowed: boolean; days_left: number | null; reminder_days: number };

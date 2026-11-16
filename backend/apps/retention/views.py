@@ -50,12 +50,23 @@ class PolicyView(APIView):
     def _data(self, shop):
         policy = retention_service.policy_for(shop)
         data = PolicySerializer(policy).data
-        data["minimum_months"] = retention_service.MIN_KEEP_MONTHS
-        data["minimums"] = {"bills_months": retention_service.MIN_KEEP_MONTHS, "audit_months": retention_service.MIN_AUDIT_MONTHS,
+        bills_min = retention_service.min_keep_months(shop)
+        data["keep_months"] = retention_service.keep_months_of(policy)   # never shows less than the minimum
+        data["minimum_months"] = bills_min
+        data["gst_records"] = bills_min > retention_service.MIN_KEEP_MONTHS
+        if data["gst_records"]:
+            data["gst_note"] = (f"GST shop: bills, tax invoices and credit notes are kept for at least {bills_min} months "
+                                "(please confirm the period with your CA). Credit notes are never removed.")
+        else:
+            data["bills_note"] = ("Item lines of bills older than your setting are moved to the archive (you can email them "
+                                  "to yourself). Bill numbers, dates, totals and payments always stay. Reports by product "
+                                  "and profit only count bills whose items are still here. Ask your CA how long your "
+                                  "business must keep its records.")
+        data["minimums"] = {"bills_months": bills_min, "audit_months": retention_service.MIN_AUDIT_MONTHS,
                             "orders_months": retention_service.MIN_ORDER_MONTHS, "notification_days": retention_service.MIN_NOTIFICATION_DAYS}
         data["audit_available"] = retention_service.PLANS["audit"].available()
         data["preview"] = retention_service.preview(shop)
-        data["archived_bills"] = ArchivedBill.objects.filter(archive__shop=shop).count()
+        data["archived_bills"] = ArchivedBill.objects.filter(sale__shop=shop).count()
         data["archived_orders"] = sum(DataArchive.objects.filter(shop=shop, category="orders").values_list("rows_count", flat=True))
         return data
 
@@ -67,6 +78,10 @@ class PolicyView(APIView):
         policy = retention_service.policy_for(request.shop)
         s = PolicySerializer(policy, data=request.data, partial=True)
         s.is_valid(raise_exception=True)
+        bills_min = retention_service.min_keep_months(request.shop)
+        if s.validated_data.get("keep_months", bills_min) < bills_min:
+            raise BusinessRuleError(f"This shop keeps bill details for at least {bills_min} months "
+                                    "(GST records). Choose a longer period.", "below_gst_minimum")
         s.save()
         if not policy.enabled:   # switching it off cancels every warning that is waiting
             RetentionNotice.objects.filter(shop=request.shop, status__in=[N.ANNOUNCED, N.POSTPONED]).update(status=N.CANCELLED)

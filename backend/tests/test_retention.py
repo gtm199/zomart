@@ -116,7 +116,8 @@ class PolicyTests(Base):
         self.assertEqual((self.items(old), RetentionLog.objects.count(), RetentionNotice.objects.count()), (1, 0, 0))
 
     def test_limits_and_who_may_change_it(self):
-        self.assertEqual(self.c.patch(POLICY, {"keep_months": 6}, format="json").status_code, 400)           # bills: never below 12 months
+        self.assertEqual(self.c.patch(POLICY, {"keep_months": 5}, format="json").status_code, 400)           # bills: never below 6 months (shops without GST)
+        self.assertEqual(self.c.patch(POLICY, {"keep_months": 6}, format="json").status_code, 200)
         self.assertEqual(self.c.patch(POLICY, {"notify_days": 3}, format="json").status_code, 400)           # at least a week of warning
         self.assertEqual(self.c.patch(POLICY, {"notification_days": 10}, format="json").status_code, 400)    # notifications: at least 30 days
         self.assertEqual(self.c.patch(POLICY, {"audit_months": 6}, format="json").status_code, 400)          # audit: at least 12 months
@@ -132,8 +133,9 @@ class PolicyTests(Base):
         self.bill(10)
         self.c.patch(POLICY, {"keep_months": 12}, format="json")
         data = self.c.get(POLICY).data
-        self.assertEqual((data["preview"]["bills"], data["preview"]["items"], data["minimum_months"]), (1, 1, 12))
-        self.assertEqual(data["minimums"], {"bills_months": 12, "audit_months": 12, "orders_months": 6, "notification_days": 30})
+        self.assertEqual((data["preview"]["bills"], data["preview"]["items"], data["minimum_months"]), (1, 1, 6))
+        self.assertEqual(data["minimums"], {"bills_months": 6, "audit_months": 12, "orders_months": 6, "notification_days": 30})
+        self.assertIn("archive", data["bills_note"])
         self.c.patch(POLICY, {"keep_months": 84}, format="json")
         self.assertEqual(self.c.get(POLICY).data["preview"]["bills"], 0)
 

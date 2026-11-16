@@ -15,12 +15,14 @@ class Cap:
     MANAGE_PURCHASES = "manage_purchases"
     MANAGE_ORDERS = "manage_orders"
     DELIVER = "deliver"
+    MANAGE_GST = "manage_gst"   # owner only: GST switch, GSTIN, scheme
+    VIEW_GST_REPORTS = "view_gst_reports"   # owner and manager only
 
 ALL_CAPS = {v for k, v in vars(Cap).items() if not k.startswith("_")}
 
 ROLE_CAPS = {
     "owner": set(ALL_CAPS),
-    "manager": ALL_CAPS - {Cap.MANAGE_MEMBERS},
+    "manager": ALL_CAPS - {Cap.MANAGE_MEMBERS, Cap.MANAGE_GST},
     "cashier": {Cap.VIEW_SHOP, Cap.VIEW_PRODUCTS, Cap.SELL, Cap.VIEW_SALES, Cap.VIEW_CUSTOMERS, Cap.MANAGE_CUSTOMERS, Cap.MANAGE_ORDERS},
     "inventory": {Cap.VIEW_SHOP, Cap.VIEW_PRODUCTS, Cap.MANAGE_PRODUCTS, Cap.VIEW_COST,
                   Cap.VIEW_PURCHASES, Cap.MANAGE_PURCHASES},

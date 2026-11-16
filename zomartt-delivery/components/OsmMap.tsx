@@ -96,7 +96,9 @@ export default function OsmMap({ state, onPin, style }: {
   onPin?: (p: { lat: number; lng: number }) => void;
   style?: StyleProp<ViewStyle>;
 }) {
-  const web = useRef<WebView>(null);
+  // react-native-webview 14.0.1 + TypeScript 6: the library's default type parameter (undefined) turns its props
+  // into `never`. Naming an empty extra-props type ({}) keeps the normal WebView props. Type-only, no runtime change.
+  const web = useRef<WebView<{}>>(null);
   const ready = useRef(false);
   const latest = useRef(state);
   latest.current = state;
@@ -117,7 +119,7 @@ export default function OsmMap({ state, onPin, style }: {
 
   return (
     <View style={[{ flex: 1, overflow: "hidden", backgroundColor: "#e5e7eb" }, style]}>
-      <WebView
+      <WebView<{}>
         ref={web}
         originWhitelist={["*"]}
         source={{ html }}

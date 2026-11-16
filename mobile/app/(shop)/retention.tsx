@@ -11,6 +11,8 @@ type Policy = {
   last_run_on: string | null; audit_available: boolean; archived_bills: number; archived_orders: number;
   minimums: { bills_months: number; audit_months: number; orders_months: number; notification_days: number };
   preview: { bills: number; items: number; keep_months: number; notifications: number; audit: number | null; orders: number };
+  gst_records?: boolean; gst_note?: string;   // GST shops: longer minimum for bills, tax invoices and credit notes
+  bills_note?: string;                        // shops without GST: what archiving bill details means
 };
 type Form = {
   enabled: boolean; clean_notifications: boolean; notification_days: string; clean_audit: boolean; audit_months: string;
@@ -162,6 +164,8 @@ export default function Retention() {
             money still owed are never touched. Keep for (months, at least {p.minimums.bills_months}):
           </Muted>
           <Input keyboardType="number-pad" value={f.keep_months} onChangeText={set("keep_months")} editable={!lock} />
+          {p.gst_note ? <Text style={{ color: "#b45309" }}>{p.gst_note}</Text> : null}
+          {p.bills_note ? <Muted>{p.bills_note}</Muted> : null}
           <Muted>Right now {p.preview.bills} bills ({p.preview.items} item lines) are older than that. {p.archived_bills} bills are archived so far.</Muted>
         </Section>
 

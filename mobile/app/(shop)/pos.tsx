@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Crypto from "expo-crypto";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { ComponentRef, useCallback, useRef, useState } from "react";
 import { Alert, Linking, ScrollView, Text, View } from "react-native";
 import SyncBanner from "../../components/SyncBanner";
 import { Button, Card, Err, Input, KeyboardAware, Muted, Screen, colors } from "../../components/ui";
@@ -10,6 +10,7 @@ import {
   HeldCart, LocalCustomer, LocalProduct, deleteHeld, findByBarcode, getCustomer, getProduct, holdCart, listHeld,
   queueSale, searchCustomers, searchProducts,
 } from "../../services/localdb";
+import { GST_DISCLAIMER, GstConfig, getGstConfig, gstLine, gstinError, needsRate, normalizeGstin } from "../../services/gst";
 import { getShopInfo, lineCents, receiptHtml, receiptText, rs, shareReceiptPdf, toCents, waLink } from "../../services/receipt";
 import { notifySync, runSync } from "../../services/sync";
 import { fmtQty, inputUnits, quickWeights, round3, toProductUnit } from "../../services/units";
@@ -57,10 +58,13 @@ export default function Pos() {
   const [wUnit, setWUnit] = useState("kg");
   const [wValue, setWValue] = useState("");
   const [lastCode, setLastCode] = useState("");
+  const [gst, setGst] = useState<GstConfig>({ enabled: false });
+  const [bizGstin, setBizGstin] = useState("");     // optional: business customer's GSTIN (GST shops only)
+  const [bizName, setBizName] = useState("");
   const lastScan = useRef(0);
   const txnId = useRef(Crypto.randomUUID()); // saved with the bill: the server never bills the same one twice
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const [cardY, setCardY] = useState(0);              // where the bill card starts inside the scrolling area
   const inputY = useRef<Record<string, number>>({});  // where each box sits inside the bill card
 
@@ -69,14 +73,21 @@ export default function Pos() {
     setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, cardY + (inputY.current[key] ?? 0) - 90), animated: true }), 350);
   
   const trusted = shop?.role === "owner" || shop?.role === "manager";
-  const totalC = cart.reduce((a, l) => a + lineCents(l.p.selling_price, l.qty), 0);
+  // GST shops: a product priced "GST added on top" costs more than its shelf price (same maths as the server)
+  const lineC = (p: LocalProduct, q: number) => gstLine(lineCents(p.selling_price, q), p.gst_rate, p.price_includes_gst !== 0, gst).totalC;
+  const onTop = (p: LocalProduct) => gst.enabled && gst.scheme !== "composition" && p.price_includes_gst === 0;
+  const totalC = cart.reduce((a, l) => a + lineC(l.p, l.qty), 0);
   const available = (p: LocalProduct) => Number(p.stock_qty) - p.pending_qty;
 
-  useFocusEffect(useCallback(() => { listHeld().then(setHeld); }, []));
+  useFocusEffect(useCallback(() => { listHeld().then(setHeld); getGstConfig().then(setGst); }, []));
 
   // ---------- adding things to the bill ----------
   const pick = (p: LocalProduct) => {
     if (!p.is_enabled) { Alert.alert("Not available", `${p.name} is switched off.`); return; }
+    if (needsRate(gst) && (p.gst_rate === null || p.gst_rate === undefined)) {
+      Alert.alert("GST rate needed", `${p.name} has no GST rate yet. Ask the owner or manager to set it in My Stock before billing it.`);
+      return;
+    }
     if (isLoose(p)) {
       setWeighing({ p, editing: false }); setWMode("weight"); setWUnit(p.unit); setWValue(""); setErr("");
       return;
@@ -157,7 +168,10 @@ export default function Pos() {
   };
 
   // ---------- hold and resume ----------
-  const clearBill = () => { setCart([]); setPaid(""); setCustomer(null); setCustQuery(""); setCusts([]); setWaPhone(""); setErr(""); };
+  const clearBill = () => {
+    setCart([]); setPaid(""); setCustomer(null); setCustQuery(""); setCusts([]); setWaPhone(""); setErr("");
+    setBizGstin(""); setBizName("");
+  };
   const holdCurrent = async () => {
     if (cart.length === 0) return;
     const time = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
@@ -194,6 +208,14 @@ export default function Pos() {
     if (paidC > totalC) { setErr("Amount received cannot be more than the bill total."); return; }
     const dueC = totalC - paidC;
     if (dueC > 0 && !customer) { setErr("Select a customer to sell on credit."); return; }
+    if (gst.enabled && bizGstin.trim()) {
+      const bad = gstinError(bizGstin);
+      if (bad) { setErr(`Customer GSTIN: ${bad}`); return; }
+    }
+    if (needsRate(gst)) {
+      const missing = cart.find((l) => l.p.gst_rate === null || l.p.gst_rate === undefined);
+      if (missing) { setErr(`${missing.p.name} has no GST rate yet. Remove it or set its rate in My Stock.`); return; }
+    }
 
     if (dueC > 0 && customer && customer.credit_limit) {
       const limitC = toCents(customer.credit_limit);
@@ -209,10 +231,13 @@ export default function Pos() {
 
     const txn = txnId.current;
     const ref = "OFF-" + txn.slice(0, 6).toUpperCase(); // temporary number; the real one comes after upload
-    const lines = cart.map((l) => ({ name: l.p.name, qty: l.qty, unit: unitOf(l.p), price: l.p.selling_price }));
+    const lines = cart.map((l) => ({ name: l.p.name, qty: l.qty, unit: unitOf(l.p), price: l.p.selling_price, totalC: lineC(l.p, l.qty) }));
     const text = receiptText(shop?.name ?? "Shop", ref, lines, totalC, paidC);
     const phone = waPhone || customer?.whatsapp_number || customer?.phone || "";
-    const pdfData = { ref, whenISO: new Date().toISOString(), customer: customer?.name, lines, totalC, paidC };
+    const pdfData = {
+      ref, whenISO: new Date().toISOString(), customer: customer?.name, lines, totalC, paidC,
+      note: gst.enabled ? `Your ${gst.scheme === "composition" ? "bill of supply" : "tax invoice"} with its final number is in Past bills after upload.` : undefined,
+    };
 
     await queueSale(
       txn,
@@ -223,6 +248,7 @@ export default function Pos() {
         customer: customer?.id ?? null,
         items: cart.map((l) => ({ shop_product: l.p.id, quantity: String(round3(l.qty)), unit_price: l.p.selling_price })),
         payments: paidC > 0 ? [{ method, amount: rs(paidC) }] : [],
+        ...(gst.enabled && bizGstin.trim() ? { customer_gstin: normalizeGstin(bizGstin), customer_gst_name: bizName.trim() } : {}),
       },
       JSON.stringify({ ref, lines, total: rs(totalC), paid: rs(paidC), customer: customer?.name ?? "", receipt: text, phone })
     );
@@ -321,7 +347,7 @@ export default function Pos() {
               </>
             )}
             <Input placeholder={wMode === "weight" ? `Weight in ${wUnit}` : "Amount in ₹"} keyboardType="decimal-pad" value={wValue} onChangeText={setWValue} />
-            {wq > 0 && <Text style={{ fontWeight: "700" }}>{fmtQty(wq, weighing.p.unit)} = ₹{rs(lineCents(weighing.p.selling_price, wq))}</Text>}
+            {wq > 0 && <Text style={{ fontWeight: "700" }}>{fmtQty(wq, weighing.p.unit)} = ₹{rs(lineC(weighing.p, wq))}{onTop(weighing.p) ? " incl. GST" : ""}</Text>}
             <Err msg={err} />
             <Button title={weighing.editing ? "Update" : "Add to bill"} onPress={confirmWeight} disabled={!(wq > 0)} />
             <Button title="Cancel" kind="ghost" onPress={() => { setWeighing(null); setErr(""); }} />
@@ -347,7 +373,7 @@ export default function Pos() {
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
               <Muted>
                 {isLoose(l.p) ? `₹${l.p.selling_price}/${l.p.unit} × ${fmtQty(l.qty, l.p.unit)}` : `₹${l.p.selling_price} × ${l.qty}`}
-                {" = ₹"}{rs(lineCents(l.p.selling_price, l.qty))}
+                {" = ₹"}{rs(lineC(l.p, l.qty))}{onTop(l.p) ? ` (incl. ${l.p.gst_rate}% GST added)` : ""}
                 {available(l.p) < l.qty ? "  (stock low)" : ""}
               </Muted>
               {isLoose(l.p) ? (
@@ -385,6 +411,17 @@ export default function Pos() {
               onLayout={(e) => { inputY.current.cust = e.nativeEvent.layout.y; }} onFocus={() => revealInput("cust")} />
             <Input placeholder="Customer's WhatsApp number (optional, to send the bill)" keyboardType="phone-pad" value={waPhone} onChangeText={setWaPhone}
               onLayout={(e) => { inputY.current.wa = e.nativeEvent.layout.y; }} onFocus={() => revealInput("wa")} />
+            {gst.enabled && (
+              <>
+                <Input placeholder="Business customer's GSTIN (optional)" autoCapitalize="characters" value={bizGstin} onChangeText={setBizGstin}
+                  onLayout={(e) => { inputY.current.gstin = e.nativeEvent.layout.y; }} onFocus={() => revealInput("gstin")} />
+                {bizGstin.trim() !== "" && (
+                  <Input placeholder="Business name (as on their GST registration)" value={bizName} onChangeText={setBizName}
+                    onLayout={(e) => { inputY.current.bizname = e.nativeEvent.layout.y; }} onFocus={() => revealInput("bizname")} />
+                )}
+                <Muted>{gst.scheme === "composition" ? "Bill of supply (composition scheme): no GST is charged." : GST_DISCLAIMER}</Muted>
+              </>
+            )}
             {customer && (
               <Text style={{ color: colors.primary }}>
                 Selected: {customer.name} · owes ₹{customer.balance}

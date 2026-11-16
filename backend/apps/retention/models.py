@@ -6,7 +6,7 @@ class RetentionPolicy(models.Model):
     """One per shop. Off by default: a shop keeps everything until its owner switches this on."""
     shop = models.OneToOneField("shops.Shop", on_delete=models.PROTECT, related_name="retention_policy")
     enabled = models.BooleanField(default=False)                  # the master switch for this shop
-    keep_months = models.PositiveSmallIntegerField(default=84)    # bill item details older than this are archived (never less than 12)
+    keep_months = models.PositiveSmallIntegerField(default=84)    # bill item details older than this are archived (never less than 6; GST shops 72)
     notify_days = models.PositiveSmallIntegerField(default=14)    # warning given before anything is archived
     clean_bills = models.BooleanField(default=True)               # archive old bill item details
     # notifications: simply deleted, no archive and no warning
@@ -86,7 +86,10 @@ class DataArchive(models.Model):
 class ArchivedBill(models.Model):
     """Marks a bill whose item details were archived. PROTECT: while this exists, the bill itself cannot be deleted."""
     sale = models.OneToOneField("sales.Sale", on_delete=models.PROTECT, related_name="retention_marker")
-    archive = models.ForeignKey(BillArchive, on_delete=models.PROTECT, related_name="bills")
+    # Empty once a platform admin has permanently deleted the archive copy (see services/retention_admin_service.py).
+    # The marker stays, so the bill is never archived again and still cannot be returned.
+    archive = models.ForeignKey(BillArchive, null=True, blank=True, on_delete=models.PROTECT, related_name="bills")
+    archive_deleted_at = models.DateTimeField(null=True, blank=True)
     archived_at = models.DateTimeField(auto_now_add=True)
 
 

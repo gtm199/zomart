@@ -4,7 +4,7 @@ from .models import BillArchive, DataArchive, RetentionLog, RetentionNotice, Ret
 
 
 class PolicySerializer(serializers.ModelSerializer):
-    keep_months = serializers.IntegerField(min_value=12, max_value=120)          # bill item details
+    keep_months = serializers.IntegerField(min_value=6, max_value=120)           # bill item details (GST shops: higher, see the view)
     notify_days = serializers.IntegerField(min_value=7, max_value=60)
     notification_days = serializers.IntegerField(min_value=30, max_value=365)    # notifications
     audit_months = serializers.IntegerField(min_value=12, max_value=120)         # change history

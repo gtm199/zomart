@@ -59,6 +59,7 @@ class PaymentSettingsAdmin(admin.ModelAdmin):
 class BankCreditAdmin(admin.ModelAdmin):
     change_list_template = "admin/subscriptions/bankcredit/change_list.html"
     list_display = ("reference", "credit_date", "amount", "status", "shop", "months", "matched_by", "new_expiry", "review_note")
+    autocomplete_fields = ("shop",)
     list_editable = ("shop", "months")
     list_filter = ("status", "matched_by")
     search_fields = ("reference", "narration", "shop__name")

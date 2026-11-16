@@ -49,6 +49,9 @@ class ShopProductViewSet(ShopScopedMixin, mixins.CreateModelMixin, mixins.ListMo
                 | Q(low_stock_threshold=0, stock_qty__lte=DEFAULT_LOW_STOCK_LEVEL)
             )
 
+        if p.get("gst_unconfirmed") == "true":   # GST shops: products that still need a confirmed GST rate
+            qs = qs.filter(gst_rate__isnull=True)
+
         if p.get("enabled") in ("true", "false"):
             qs = qs.filter(is_enabled=(p["enabled"] == "true"))
 

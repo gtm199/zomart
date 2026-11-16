@@ -1,14 +1,61 @@
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.catalog.models import MasterProduct
 from apps.catalog.serializers import MasterProductSerializer
 from apps.shops.roles import Cap
-from services import inventory_service, subscription_service
+from services import gst_service, inventory_service, subscription_service
 
 from .models import ShopProduct, StockMovement
+
+
+GST_FIELDS = ("gst_rate", "hsn_code", "price_includes_gst")
+
+
+def _customer_price(shop, sp, master):
+    """What the customer pays for one unit, and whether that is above the printed MRP (Legal Metrology: MRP includes
+    all taxes; packaged goods may not be sold above it). A warning only - many products have no MRP on record."""
+    if sp.gst_rate is None or shop.gst_scheme == "composition":
+        per_unit = sp.selling_price
+    else:
+        per_unit = gst_service.compute_line(gross=sp.selling_price, rate=sp.gst_rate,
+                                            price_includes_gst=sp.price_includes_gst).line_total
+    above = master.mrp is not None and per_unit > master.mrp
+    return {"customer_price": str(per_unit), "mrp": None if master.mrp is None else str(master.mrp),
+            "above_mrp": above}
+
+
+def _shop_of(serializer, obj=None):
+    return serializer.context.get("shop") or (obj.shop if obj is not None else None)
+
+
+class GstInputMixin:
+    """Shared GST input rules for create/update. Only GST shops may send GST fields."""
+
+    def validate_gst_rate(self, value):
+        if value is None:
+            return None
+        try:
+            return gst_service.validate_rate(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
+
+    def validate_hsn_code(self, value):
+        try:
+            return gst_service.validate_hsn(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
+
+    def check_gst_allowed(self, attrs):
+        shop = self.context.get("shop")
+        if any(f in attrs for f in GST_FIELDS) and not (shop and shop.gst_enabled):
+            raise serializers.ValidationError({"gst_rate": "Switch GST billing on in Settings before setting GST details."})
+        if "gst_rate" in attrs:
+            attrs["gst_confirmed_at"] = timezone.now() if attrs["gst_rate"] is not None else None
+        return attrs
 
 
 class ShopProductSerializer(serializers.ModelSerializer):
@@ -35,9 +82,22 @@ class ShopProductSerializer(serializers.ModelSerializer):
         membership = self.context.get("membership")
         if membership is None or not membership.has_cap(Cap.VIEW_COST):
             data.pop("purchase_cost", None)  # cashiers never see purchase costs
+        shop = _shop_of(self, instance)
+        if shop is not None and shop.gst_enabled:
+            master = instance.master_product
+            data.update({
+                "gst_rate": None if instance.gst_rate is None else str(instance.gst_rate),
+                "hsn_code": instance.hsn_code,
+                "price_includes_gst": instance.price_includes_gst,
+                "gst_confirmed": instance.gst_rate is not None,
+                # catalogue suggestion only: the vendor must confirm it for their shop
+                "suggested_gst_rate": None if master.tax_rate is None else str(master.tax_rate),
+                "suggested_hsn_code": master.hsn_code,
+                **_customer_price(shop, instance, master),
+            })
         return data
 
-class ShopProductCreateSerializer(serializers.Serializer):
+class ShopProductCreateSerializer(GstInputMixin, serializers.Serializer):
     master_product = serializers.PrimaryKeyRelatedField(queryset=MasterProduct.objects.filter(status=MasterProduct.Status.ACTIVE))
     selling_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))
     purchase_cost = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"), required=False, default=0)
@@ -45,6 +105,12 @@ class ShopProductCreateSerializer(serializers.Serializer):
     low_stock_threshold = serializers.DecimalField(max_digits=12, decimal_places=3, min_value=Decimal("0"), required=False, default=0)
     is_enabled = serializers.BooleanField(required=False, default=True)
     expiry_date = serializers.DateField(required=False, allow_null=True, default=None)
+    gst_rate = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, allow_null=True)
+    hsn_code = serializers.CharField(max_length=8, required=False, allow_blank=True)
+    price_includes_gst = serializers.BooleanField(required=False)
+
+    def validate(self, attrs):
+        return self.check_gst_allowed(attrs)
 
     def validate_master_product(self, value):
         if ShopProduct.objects.filter(shop=self.context["shop"], master_product=value).exists():
@@ -57,6 +123,8 @@ class ShopProductCreateSerializer(serializers.Serializer):
         user = self.context["request"].user
         subscription_service.check_limit(shop, "products")
         opening = data.pop("opening_stock")
+        # New listings follow the shop's price mode unless the vendor chose one for this product.
+        data.setdefault("price_includes_gst", shop.gst_price_mode != "exclusive")
         sp = ShopProduct.objects.create(shop=shop, **data)
         if opening > 0:
             inventory_service.apply_movement(shop_product_id=sp.pk, delta=opening,
@@ -65,11 +133,15 @@ class ShopProductCreateSerializer(serializers.Serializer):
         return sp
 
 
-class ShopProductUpdateSerializer(serializers.ModelSerializer):
+class ShopProductUpdateSerializer(GstInputMixin, serializers.ModelSerializer):
     class Meta:
         model = ShopProduct
-        fields = ["selling_price", "purchase_cost", "low_stock_threshold", "is_enabled", "expiry_date", "online_visible"]
+        fields = ["selling_price", "purchase_cost", "low_stock_threshold", "is_enabled", "expiry_date", "online_visible",
+                  "gst_rate", "hsn_code", "price_includes_gst"]
         extra_kwargs = {"selling_price": {"min_value": Decimal("0")}, "purchase_cost": {"min_value": Decimal("0")}}
+
+    def validate(self, attrs):
+        return self.check_gst_allowed(attrs)
 
 
 class StockAdjustmentSerializer(serializers.Serializer):

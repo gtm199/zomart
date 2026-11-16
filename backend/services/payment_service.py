@@ -142,7 +142,9 @@ def match(amount, narration, shops, plans):
     if len(found) == 1:
         return found[0][0], found[0][1], "amount", ""
     if len(found) > 1:
-        return None, None, "", "Amount fits several shops: " + ", ".join(sorted({s.name for s, _ in found}))
+        shops_found = sorted({s.pk: s for s, _ in found}.values(), key=lambda s: s.pk)   # one entry per shop, never per name
+        return None, None, "", "Amount fits several shops: " + ", ".join(
+            f"{s.name} (#{s.pk}, code {s.payment_code})" for s in shops_found)
     return None, None, "", "No shop code and the amount matches no shop"
 
 

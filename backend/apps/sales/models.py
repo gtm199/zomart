@@ -26,7 +26,32 @@ class Sale(models.Model):
     needs_review = models.BooleanField(default=False)
     review_note = models.TextField(blank=True, default="")
     client_created_at = models.DateTimeField(null=True, blank=True)  # time the bill was made on the phone
+
+    # --- GST snapshot (frozen at billing time; "bill" = a plain non-GST bill, exactly as before) ---
+    class DocumentType(models.TextChoices):
+        BILL = "bill", "Bill"
+        TAX_INVOICE = "tax_invoice", "Tax invoice"
+        BILL_OF_SUPPLY = "bill_of_supply", "Bill of supply"
+
+    document_type = models.CharField(max_length=15, choices=DocumentType.choices, default=DocumentType.BILL)
+    taxable_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cgst_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    sgst_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    igst_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    round_off = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    seller_gstin = models.CharField(max_length=15, blank=True)
+    seller_legal_name = models.CharField(max_length=150, blank=True)
+    seller_trade_name = models.CharField(max_length=150, blank=True)
+    seller_address = models.CharField(max_length=300, blank=True)
+    seller_state_code = models.CharField(max_length=2, blank=True)
+    place_of_supply = models.CharField(max_length=2, blank=True)      # state code
+    customer_gstin = models.CharField(max_length=15, blank=True)      # optional, business customers only
+    customer_gst_name = models.CharField(max_length=150, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_gst_document(self):
+        return self.document_type != self.DocumentType.BILL
 
     class Meta:
         ordering = ["-created_at", "-id"]
@@ -55,6 +80,13 @@ class SaleItem(models.Model):
     line_total = models.DecimalField(max_digits=12, decimal_places=2)
     purchase_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     returned_qty = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    # GST snapshot. On GST documents tax_rate = the GST rate and tax_amount = cgst + sgst + igst.
+    hsn_code = models.CharField(max_length=8, blank=True)
+    price_includes_gst = models.BooleanField(default=True)
+    taxable_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cgst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    sgst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    igst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
 
 class Payment(models.Model):
@@ -79,3 +111,54 @@ class Payment(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["shop", "-created_at"])]
+
+
+class InvoiceSequence(models.Model):
+    """One consecutive number series per shop, per document series, per financial year (1 Apr - 31 Mar).
+    Only GST documents use it; plain bills keep Shop.invoice_counter. Always updated under select_for_update."""
+    shop = models.ForeignKey("shops.Shop", on_delete=models.PROTECT, related_name="invoice_sequences")
+    series = models.CharField(max_length=15)          # tax_invoice / bill_of_supply / credit_note
+    fy_start_year = models.PositiveSmallIntegerField()  # 2026 = FY 2026-27
+    last_number = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["shop", "series", "fy_start_year"], name="uniq_invoice_sequence")]
+
+
+class CreditNote(models.Model):
+    """Issued when goods on a GST document are returned. Reverses the tax of the returned part and links to the
+    original invoice. Stock and money are handled by the normal return in billing_service."""
+    shop = models.ForeignKey("shops.Shop", on_delete=models.PROTECT, related_name="credit_notes")
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="credit_notes")
+    number = models.CharField(max_length=20)
+    original_invoice_number = models.CharField(max_length=20)
+    original_document_type = models.CharField(max_length=15)
+    taxable_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cgst_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    sgst_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    igst_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    seller_gstin = models.CharField(max_length=15, blank=True)
+    seller_legal_name = models.CharField(max_length=150, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [models.UniqueConstraint(fields=["shop", "number"], name="uniq_credit_note_shop_number")]
+        indexes = [models.Index(fields=["shop", "-created_at"])]
+
+
+class CreditNoteItem(models.Model):
+    """Snapshot of the returned part of one invoice line (copied, so it survives bill-item archiving)."""
+    credit_note = models.ForeignKey(CreditNote, on_delete=models.CASCADE, related_name="items")
+    sale_item_id_ref = models.PositiveBigIntegerField()
+    product_name = models.CharField(max_length=300)
+    hsn_code = models.CharField(max_length=8, blank=True)
+    quantity = models.DecimalField(max_digits=12, decimal_places=3)
+    gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    taxable_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cgst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    sgst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    igst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    line_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
