@@ -84,3 +84,48 @@ class StockMovement(models.Model):
     class Meta:
         ordering = ["-created_at", "-id"]
         indexes = [models.Index(fields=["shop_product", "-created_at"])]
+
+
+class StockBatch(models.Model):
+    """One lot of a product with its own expiry date. Changed only by services/inventory_service.py.
+    Stock without a known expiry date has no batch ("undated"); the sum of quantity_left never exceeds stock_qty.
+    ShopProduct.expiry_date is kept equal to the earliest expiry among batches that still have pieces left."""
+
+    class Source(models.TextChoices):
+        PURCHASE = "purchase"
+        OPENING = "opening"
+        RECEIVED = "received"      # stock added from the stock screen
+        MANUAL = "manual"          # date given to stock already on the shelf
+        MIGRATED = "migrated"      # created from the old single expiry date
+
+    shop = models.ForeignKey("shops.Shop", on_delete=models.PROTECT, related_name="stock_batches")
+    shop_product = models.ForeignKey(ShopProduct, on_delete=models.PROTECT, related_name="batches")
+    expiry_date = models.DateField()
+    batch_no = models.CharField(max_length=40, blank=True)
+    quantity_received = models.DecimalField(max_digits=12, decimal_places=3)
+    quantity_left = models.DecimalField(max_digits=12, decimal_places=3)
+    source = models.CharField(max_length=10, choices=Source.choices)
+    purchase_id = models.PositiveBigIntegerField(null=True, blank=True)   # the purchase it came in with
+    note = models.CharField(max_length=255, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["expiry_date", "id"]
+        indexes = [models.Index(fields=["shop_product", "expiry_date"]), models.Index(fields=["shop", "expiry_date"])]
+        constraints = [models.CheckConstraint(condition=models.Q(quantity_left__gte=0), name="stockbatch_left_gte_0")]
+
+    @property
+    def days_to_expiry(self):
+        return (self.expiry_date - timezone.localdate()).days
+
+    @property
+    def status(self):
+        if self.quantity_left <= 0:
+            return "finished"
+        days = self.days_to_expiry
+        return "expired" if days < 0 else "expiring_soon" if days <= EXPIRY_ALERT_DAYS else "ok"
+
+    def __str__(self):
+        return f"{self.shop_product} · exp {self.expiry_date} · {self.quantity_left} left"

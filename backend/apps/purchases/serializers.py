@@ -50,7 +50,8 @@ class PurchaseItemInputSerializer(serializers.Serializer):
     quantity = serializers.DecimalField(max_digits=12, decimal_places=3, min_value=Decimal("0.001"))
     unit_cost = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))
     expiry_date = serializers.DateField(required=False, allow_null=True, default=None)
-    gst_rate = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=Decimal("0"), max_value=Decimal("100"),
+    batch_no = serializers.CharField(max_length=40, required=False, allow_blank=True, default="")
+    gst_rate =serializers.DecimalField(max_digits=5, decimal_places=2, min_value=Decimal("0"), max_value=Decimal("100"),
                                         required=False, allow_null=True, default=None)
     gst_amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"), required=False,
                                           allow_null=True, default=None)

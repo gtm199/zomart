@@ -73,7 +73,8 @@ def _create(shop, user, client_txn_id, supplier_id, items, payments, invoice_num
                                     "invalid_gst_amount")
         total += line_total
         gst_total += gst_amount
-        lines.append((sp, quantity, unit_cost, line_total, row.get("expiry_date"), row.get("gst_rate"), gst_amount))
+        lines.append((sp, quantity, unit_cost, line_total, (row.get("expiry_date"), row.get("batch_no") or ""),
+                      row.get("gst_rate"), gst_amount))
 
     paid, pay_rows = Decimal("0"), []
     for p in payments:
@@ -90,22 +91,18 @@ def _create(shop, user, client_txn_id, supplier_id, items, payments, invoice_num
         shop=shop, supplier=supplier, invoice_number=invoice_number, client_txn_id=client_txn_id,
         purchase_date=purchase_date or timezone.localdate(), total=total, amount_paid=paid, amount_due=due,
         notes=notes, created_by=user, supplier_gstin=supplier_gstin if shop.gst_enabled else "", gst_total=gst_total)
-    for sp, quantity, unit_cost, line_total, expiry, gst_rate, gst_amount in lines:
+    for sp, quantity, unit_cost, line_total, (expiry, batch_no), gst_rate, gst_amount in lines:
         PurchaseItem.objects.create(purchase=purchase, shop_product=sp, product_name=sp.master_product.display_name,
                                     quantity=quantity, unit_cost=unit_cost, line_total=line_total,
                                     gst_rate=gst_rate, gst_amount=gst_amount)
         inventory_service.apply_movement(
             shop_product_id=sp.pk, delta=quantity, movement_type=StockMovement.Type.PURCHASE, user=user,
             reference_type="purchase", reference_id=purchase.pk,
-            note=f"Supplier invoice {invoice_number}".strip())
+            note=f"Supplier invoice {invoice_number}".strip(),
+            expiry_date=expiry, batch_no=batch_no)   # a dated lot becomes its own expiry batch
         # latest purchase cost; queryset update so we never overwrite the stock balance with a stale copy
         ShopProduct.objects.filter(pk=sp.pk).update(purchase_cost=unit_cost, updated_at=timezone.now())
-        if expiry:
-            # keep the older date if old stock is still on the shelf; otherwise use the new lot's date
-            keep_old = sp.expiry_date and sp.stock_qty > 0 and sp.expiry_date < expiry
-            if not keep_old:
-                ShopProduct.objects.filter(pk=sp.pk).update(expiry_date=expiry)
-                
+
     for method, amount, reference in pay_rows:
         SupplierPayment.objects.create(shop=shop, supplier=supplier, purchase=purchase,
                                        kind=SupplierPayment.Kind.PURCHASE, method=method, amount=amount,

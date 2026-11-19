@@ -4,6 +4,7 @@ import { FlatList, Linking, Switch, Text, View } from "react-native";
 import { Button, Card, Err, Input, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
 import { waLink } from "../../services/receipt";
+import DeliveryStats from "../../components/DeliveryStats";
 
 type Item = { id: number; product_name: string; unit: string; ordered_quantity: string; quantity: string; unit_price: string; line_total: string };
 type Order = {
@@ -25,7 +26,7 @@ const MSG: Record<string, string> = {
 
 export default function Orders() {
   const router = useRouter();
-  const [scope, setScope] = useState<"active" | "past">("active");
+  const [scope, setScope] = useState<"active" | "past" | "deliveries">("active");
   const [rows, setRows] = useState<Order[]>([]);
   const [open, setOpen] = useState<number | null>(null);
   const [adjust, setAdjust] = useState<Record<number, string>>({});
@@ -34,6 +35,7 @@ export default function Orders() {
   const [riders, setRiders] = useState<{ id: number; name: string; phone: string }[]>([]);
 
   const load = useCallback(async () => {
+    if (scope === "deliveries") return;   // the Deliveries tab loads its own numbers
     try {
       const r = await api<{ results: Order[] }>(`/shop/orders/?scope=${scope}&page_size=100`);
       setRows(r.results);
@@ -76,8 +78,10 @@ export default function Orders() {
       <View style={{ flexDirection: "row", gap: 8 }}>
         <Button title="Active" kind={scope === "active" ? "primary" : "ghost"} onPress={() => setScope("active")} />
         <Button title="Past" kind={scope === "past" ? "primary" : "ghost"} onPress={() => setScope("past")} />
+        <Button title="Deliveries" kind={scope === "deliveries" ? "primary" : "ghost"} onPress={() => setScope("deliveries")} />
       </View>
       <Err msg={err} />
+      {scope === "deliveries" ? <DeliveryStats /> : (
       <FlatList
         data={rows}
         keyExtractor={(o) => String(o.id)}
@@ -176,6 +180,7 @@ export default function Orders() {
           </Card>
         )}
       />
+      )}
     </Screen>
   );
 }

@@ -10,6 +10,8 @@ export type ShopProduct = {
   id: number; master_product: Master; selling_price: string; purchase_cost?: string;
   stock_qty: string; low_stock_threshold: string; is_enabled: boolean; is_low_stock: boolean; master_active: boolean;
   expiry_date: string | null; days_to_expiry: number | null; expiry_status: "expired" | "expiring_soon" | "ok" | null;
+  expiry_qty?: string | null;    // pieces expiring on expiry_date (from batches)
+  batches_count?: number;        // batches with pieces left
   online_visible?: boolean;
   // Present only when the shop has GST billing switched on
   gst_rate?: string | null; hsn_code?: string; price_includes_gst?: boolean; gst_confirmed?: boolean;

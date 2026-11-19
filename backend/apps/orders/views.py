@@ -14,7 +14,7 @@ from apps.shops.models import Shop
 from apps.shops.roles import Cap
 from apps.customers.models import CustomerLedger
 from core.tenancy import ShopAccess, ShopScopedMixin
-from services import credit_service, order_service, shopper_password_reset_service, tracking_service
+from services import credit_service, delivery_stats_service, order_service, shopper_password_reset_service, tracking_service
 from services.exceptions import BusinessRuleError
 
 from .auth import ShopperTokenAuthentication
@@ -308,6 +308,12 @@ class OrderViewSet(ShopScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelM
         qs = Order.objects.filter(shop=request.shop)
         return Response({"new": qs.filter(status=Order.Status.PLACED).count(),
                          "active": qs.filter(status__in=order_service.ACTIVE).count()})
+
+    @action(detail=False, url_path="delivery-stats")
+    def delivery_stats(self, request):
+        """Number of deliveries and delivery charges (?from=&to=). Separate from bills and reports."""
+        d_from, d_to = delivery_stats_service.parse_period(request.query_params)
+        return Response(delivery_stats_service.delivery_stats(request.shop, d_from, d_to))
 
     @action(detail=True, methods=["post"])
     def accept(self, request, pk=None):

@@ -88,10 +88,7 @@ export default function Checkout() {
               {shop?.accepts_pickup && <Button title="I will pick up" kind={fulfilment === "pickup" ? "primary" : "ghost"} onPress={() => setFulfilment("pickup")} />}
             </View>
             {fulfilment === "delivery" && (
-              <Input placeholder="Full delivery address (house, street, landmark)" multiline value={address} onChangeText={setAddress} />
-            )}
-            {fulfilment === "delivery" && (
-              <SavedAddresses address={address} point={point}
+              <SavedAddresses address={address} point={point} onAddress={setAddress}
                 onPick={(a, p) => { setAddress(a); setPoint(p); }}
                 onMatch={setSavedId} />
             )}

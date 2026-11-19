@@ -8,18 +8,23 @@ import { hsnError } from "../../services/gst";
 import { refreshAfterGstChange } from "../../services/sync";
 import { ShopProduct } from "../../types";
 import ProductImage from "../../components/ProductImage";
+import BatchPanel from "../../components/BatchPanel";
+import { useSession } from "../../store/session";
 
 const WARN = "#b45309";
 type PageResp = { count: number; next: string | null; results: ShopProduct[] };
 
 function expiryLine(sp: ShopProduct) {
   if (!sp.expiry_date) return null;
-  if (sp.expiry_status === "expired") return { text: `EXPIRED on ${sp.expiry_date}`, color: colors.danger };
-  if (sp.expiry_status === "expiring_soon") return { text: `Expires in ${sp.days_to_expiry} day(s) · ${sp.expiry_date}`, color: WARN };
-  return { text: `Expiry ${sp.expiry_date}`, color: colors.muted };
+  const pcs = sp.expiry_qty ? ` (${Number(sp.expiry_qty)} pcs)` : "";
+  const more = (sp.batches_count ?? 0) > 1 ? ` · ${sp.batches_count} batches` : "";
+  if (sp.expiry_status === "expired") return { text: `EXPIRED on ${sp.expiry_date}${pcs}${more}`, color: colors.danger };
+  if (sp.expiry_status === "expiring_soon") return { text: `Expires in ${sp.days_to_expiry} day(s) · ${sp.expiry_date}${pcs}${more}`, color: WARN };
+  return { text: `Expiry ${sp.expiry_date}${pcs}${more}`, color: colors.muted };
 }
 
 export default function Stock() {
+  const { can } = useSession();
   const [q, setQ] = useState("");
   const [lowOnly, setLowOnly] = useState(false);
   const [expiringOnly, setExpiringOnly] = useState(false);
@@ -35,8 +40,9 @@ export default function Stock() {
   const [open, setOpen] = useState<number | null>(null);
   const [price, setPrice] = useState("");
   const [cost, setCost] = useState("");
-  const [expiry, setExpiry] = useState("");
   const [addQty, setAddQty] = useState("");
+  const [addExpiry, setAddExpiry] = useState("");    // expiry date of the stock being received (makes a batch)
+  const [addBatchNo, setAddBatchNo] = useState("");
   const [err, setErr] = useState("");
   const [online, setOnline] = useState(true);
   // GST (only shown when the shop has GST billing on; the server decides)
@@ -98,19 +104,30 @@ export default function Stock() {
     setOpen(sp.id);
     setPrice(sp.selling_price);
     setCost(sp.purchase_cost ?? "");
-    setExpiry(sp.expiry_date ?? "");
     setOnline(sp.online_visible !== false);
     setGstRate(sp.gst_rate ?? "");
     setHsn(sp.hsn_code ?? "");
     setInclGst(sp.price_includes_gst !== false);
     setAddQty("");
+    setAddExpiry("");
+    setAddBatchNo("");
     setErr("");
+  };
+
+  // a batch was written off / closed / dated: show the new stock and expiry at once
+  const batchChanged = (fresh: ShopProduct) => {
+    setItems((prev) => prev.map((x) => (x.id === fresh.id ? fresh : x)));
+    api("/shop/products/expiry-alerts/").then((a: any) => setAlerts(a)).catch(() => {});
   };
 
   const save = async (sp: ShopProduct) => {
     setErr("");
-    if (expiry !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(expiry)) {
+    if (addExpiry.trim() !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(addExpiry.trim())) {
       setErr("Write the expiry date as YYYY-MM-DD, for example 2027-03-31.");
+      return;
+    }
+    if (addExpiry.trim() !== "" && !addQty) {
+      setErr("Enter the stock received for this expiry date, or clear the date.");
       return;
     }
     try {
@@ -118,7 +135,6 @@ export default function Stock() {
       const body: Record<string, string | boolean | null> = {};
       if (price && price !== sp.selling_price) body.selling_price = price;
       if (sp.purchase_cost !== undefined && cost && cost !== sp.purchase_cost) body.purchase_cost = cost;
-      if (expiry !== (sp.expiry_date ?? "")) body.expiry_date = expiry === "" ? null : expiry;
       if (online !== (sp.online_visible !== false)) body.online_visible = online;
       let gstChanged = false;
       if (sp.gst_rate !== undefined) {   // GST shop: the server sent GST fields
@@ -136,7 +152,10 @@ export default function Stock() {
         await api(`/shop/products/${sp.id}/`, { method: "PATCH", body });
       }
       if (addQty) {
-        await api(`/shop/products/${sp.id}/adjust-stock/`, { body: { quantity_delta: addQty, movement_type: "purchase" } });
+        await api(`/shop/products/${sp.id}/adjust-stock/`, { body: {
+          quantity_delta: addQty, movement_type: "purchase",
+          ...(addExpiry.trim() ? { expiry_date: addExpiry.trim(), batch_no: addBatchNo.trim() } : {}),
+        } });
       }
       if (gstChanged) refreshAfterGstChange(); // the billing screen must see the new rate, also offline
       const fresh = await api<ShopProduct>(`/shop/products/${sp.id}/`); // refresh only this product, keep your place in the list
@@ -144,6 +163,8 @@ export default function Stock() {
       setAlerts(await api("/shop/products/expiry-alerts/"));
       setOpen(null);
       setAddQty("");
+      setAddExpiry("");
+      setAddBatchNo("");
     } catch (e: any) {
       setErr(e.message);
     }
@@ -228,8 +249,7 @@ export default function Stock() {
                       <Input keyboardType="decimal-pad" value={cost} onChangeText={setCost} />
                     </>
                   )}
-                  <Muted>Expiry date of the stock in hand (YYYY-MM-DD, blank = none)</Muted>
-                  <Input placeholder="2027-03-31" value={expiry} onChangeText={setExpiry} />
+                  <BatchPanel sp={sp} canManage={can("manage_products")} onChanged={batchChanged} />
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                     <Text>Show in the customer ordering app</Text>
                     <Switch value={online} onValueChange={setOnline} />
@@ -260,6 +280,18 @@ export default function Stock() {
                   )}
                   <Muted>Stock received (+)</Muted>
                   <Input placeholder="0" keyboardType="decimal-pad" value={addQty} onChangeText={setAddQty} />
+                  {addQty ? (
+                    <>
+                      <Muted>Expiry date of this new stock (YYYY-MM-DD, optional - makes a new batch)</Muted>
+                      <Input placeholder="2027-03-31" value={addExpiry} onChangeText={setAddExpiry} />
+                      {addExpiry ? (
+                        <>
+                          <Muted>Batch number (optional)</Muted>
+                          <Input value={addBatchNo} onChangeText={setAddBatchNo} autoCapitalize="characters" />
+                        </>
+                      ) : null}
+                    </>
+                  ) : null}
                   <Button title="Save" onPress={() => save(sp)} />
                   <Button title="Cancel" kind="ghost" onPress={() => setOpen(null)} />
                 </>

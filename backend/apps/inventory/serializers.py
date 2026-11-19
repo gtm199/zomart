@@ -9,7 +9,7 @@ from apps.catalog.serializers import MasterProductSerializer
 from apps.shops.roles import Cap
 from services import gst_service, inventory_service, subscription_service
 
-from .models import ShopProduct, StockMovement
+from .models import ShopProduct, StockBatch, StockMovement
 
 
 GST_FIELDS = ("gst_rate", "hsn_code", "price_includes_gst")
@@ -64,12 +64,28 @@ class ShopProductSerializer(serializers.ModelSerializer):
     master_active = serializers.SerializerMethodField()
     days_to_expiry = serializers.IntegerField(read_only=True)
     expiry_status = serializers.CharField(read_only=True)
+    expiry_qty = serializers.SerializerMethodField()        # pieces that expire on expiry_date (batches)
+    batches_count = serializers.SerializerMethodField()     # batches with pieces left
 
     class Meta:
         model = ShopProduct
         fields = ["id", "master_product", "selling_price", "purchase_cost", "stock_qty", "low_stock_threshold",
                   "is_enabled", "is_low_stock", "master_active", "expiry_date", "days_to_expiry",
-                  "expiry_status", "online_visible", "updated_at"]
+                  "expiry_status", "expiry_qty", "batches_count", "online_visible", "updated_at"]
+
+    @staticmethod
+    def _open_batches(obj):
+        rows = getattr(obj, "open_batches", None)   # prefetched by the product list
+        if rows is None:
+            rows = list(StockBatch.objects.filter(shop_product=obj, quantity_left__gt=0).order_by("expiry_date", "id"))
+        return rows
+
+    def get_expiry_qty(self, obj):
+        rows = [b for b in self._open_batches(obj) if b.expiry_date == obj.expiry_date]
+        return str(sum((b.quantity_left for b in rows), Decimal("0"))) if rows else None
+
+    def get_batches_count(self, obj):
+        return len(self._open_batches(obj))
 
     def get_is_low_stock(self, obj):
         return obj.low_stock_threshold > 0 and obj.stock_qty <= obj.low_stock_threshold
@@ -123,11 +139,12 @@ class ShopProductCreateSerializer(GstInputMixin, serializers.Serializer):
         user = self.context["request"].user
         subscription_service.check_limit(shop, "products")
         opening = data.pop("opening_stock")
+        expiry = data.pop("expiry_date", None)
         # New listings follow the shop's price mode unless the vendor chose one for this product.
         data.setdefault("price_includes_gst", shop.gst_price_mode != "exclusive")
-        sp = ShopProduct.objects.create(shop=shop, **data)
-        if opening > 0:
-            inventory_service.apply_movement(shop_product_id=sp.pk, delta=opening,
+        sp = ShopProduct.objects.create(shop=shop, expiry_date=None if opening > 0 else expiry, **data)
+        if opening > 0:   # opening stock with an expiry date becomes its first batch
+            inventory_service.apply_movement(shop_product_id=sp.pk, delta=opening, expiry_date=expiry,
                                              movement_type=StockMovement.Type.OPENING, user=user, note="Opening stock")
             sp.refresh_from_db()
         return sp
@@ -143,6 +160,17 @@ class ShopProductUpdateSerializer(GstInputMixin, serializers.ModelSerializer):
     def validate(self, attrs):
         return self.check_gst_allowed(attrs)
 
+    @transaction.atomic
+    def update(self, instance, data):
+        # the expiry date now lives in batches; the old single field still works through the service
+        has_expiry = "expiry_date" in data
+        expiry = data.pop("expiry_date", None)
+        instance = super().update(instance, data)
+        if has_expiry and expiry != instance.expiry_date:
+            inventory_service.set_shelf_expiry(instance, expiry, user=self.context["request"].user)
+            instance.refresh_from_db()
+        return instance
+
 
 class StockAdjustmentSerializer(serializers.Serializer):
     T = StockMovement.Type
@@ -150,6 +178,8 @@ class StockAdjustmentSerializer(serializers.Serializer):
     movement_type = serializers.ChoiceField(choices=[T.ADJUSTMENT, T.DAMAGE, T.EXPIRED, T.PURCHASE])
     note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
     purchase_cost = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"), required=False)
+    expiry_date = serializers.DateField(required=False, allow_null=True, default=None)   # for stock coming in
+    batch_no = serializers.CharField(max_length=40, required=False, allow_blank=True, default="")
 
     def validate(self, attrs):
         delta, kind = attrs["quantity_delta"], attrs["movement_type"]
@@ -159,7 +189,37 @@ class StockAdjustmentSerializer(serializers.Serializer):
             raise serializers.ValidationError("Damaged or expired stock must be a negative change.")
         if kind == "purchase" and delta < 0:
             raise serializers.ValidationError("Stock received must be a positive change.")
+        if attrs.get("expiry_date") and delta < 0:
+            raise serializers.ValidationError("An expiry date is only for stock coming in.")
         return attrs
+
+
+class StockBatchSerializer(serializers.ModelSerializer):
+    days_to_expiry = serializers.IntegerField(read_only=True)
+    status = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = StockBatch
+        fields = ["id", "expiry_date", "batch_no", "quantity_received", "quantity_left", "days_to_expiry", "status",
+                  "source", "purchase_id", "note", "created_at"]
+
+
+class BatchAddSerializer(serializers.Serializer):
+    expiry_date = serializers.DateField()
+    quantity = serializers.DecimalField(max_digits=12, decimal_places=3, min_value=Decimal("0.001"))
+    batch_no = serializers.CharField(max_length=40, required=False, allow_blank=True, default="")
+
+
+class BatchEditSerializer(serializers.Serializer):
+    expiry_date = serializers.DateField(required=False)
+    batch_no = serializers.CharField(max_length=40, required=False, allow_blank=True)
+
+
+class BatchWriteOffSerializer(serializers.Serializer):
+    quantity = serializers.DecimalField(max_digits=12, decimal_places=3, min_value=Decimal("0.001"), required=False)
+    movement_type = serializers.ChoiceField(choices=[StockMovement.Type.EXPIRED, StockMovement.Type.DAMAGE],
+                                            required=False, default=StockMovement.Type.EXPIRED)
+    note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
 
 
 class StockMovementSerializer(serializers.ModelSerializer):
