@@ -66,12 +66,16 @@ class OrderFlowTests(APITestCase):
         self.assertEqual(self.s.get(f"{API}/store/shops/?code={self.code}").data, [])
         self.assertEqual(self.place().status_code, 400)
 
-    def test_customer_sees_prices_but_never_costs_or_exact_stock(self):
+    def test_customer_sees_prices_and_stock_available_but_never_costs(self):
         row = self.s.get(f"{API}/store/shops/{self.shop.id}/products/").data["results"][0]
         self.assertEqual(row["selling_price"], "30.00")
         self.assertTrue(row["in_stock"])
-        for secret in ("purchase_cost", "stock_qty"):
+        self.assertEqual((row["stock_available"], row["limit_to_stock"]), ("10", True))
+        for secret in ("purchase_cost", "stock_qty", "low_stock_threshold"):
             self.assertNotIn(secret, row)
+        ShopProduct.objects.filter(pk=self.sp).update(stock_qty=Decimal("-2"))   # an offline sale took it below 0
+        row = self.s.get(f"{API}/store/shops/{self.shop.id}/products/").data["results"][0]
+        self.assertEqual((row["stock_available"], row["in_stock"]), ("0", False))
 
     # ----- placing -----
     def test_totals_fees_and_rules(self):

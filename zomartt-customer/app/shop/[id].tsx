@@ -7,7 +7,8 @@ import { useCart } from "../../store/cart";
 import type { Shop } from "../(tabs)/index";
 import ProductImage from "../../components/ProductImage";
 
-type Product = { id: number; name: string; category: number | null; category_name: string; unit: string; loose: boolean; selling_price: string; image: string; image_full: string; in_stock: boolean };
+type Product = { id: number; name: string; category: number | null; category_name: string; unit: string; loose: boolean; selling_price: string; image: string; image_full: string; in_stock: boolean;
+  stock_available?: string; limit_to_stock?: boolean };   // how much is on the shelf; false = the shop sells without stock
 type Category = { id: number; name: string; parent: number | null; sort_order: number; product_count: number };
 type Page = { count: number; next: string | null; results: Product[] };
 
@@ -58,8 +59,18 @@ export default function ShopScreen() {
 
   const cartShop = { id: Number(id), name: shop?.name ?? "Shop" };
   const step = (p: Product) => (p.loose ? 0.25 : 1);
-  const change = (p: Product, delta: number) =>
-    cart.setQty(cartShop, { id: p.id, name: p.name, price: p.selling_price, unit: p.unit, loose: p.loose, image: p.image }, Math.max(0, cart.qtyOf(p.id) + delta));
+  const available = (p: Product) => (p.limit_to_stock === false || p.stock_available === undefined ? Infinity : Number(p.stock_available));
+  const change = (p: Product, delta: number) => {
+    const want = Math.min(Math.max(0, cart.qtyOf(p.id) + delta), available(p));   // never more than the shop has
+    cart.setQty(cartShop, { id: p.id, name: p.name, price: p.selling_price, unit: p.unit, loose: p.loose, image: p.image }, want);
+  };
+  const stockLine = (p: Product) => {
+    if (!p.in_stock || p.limit_to_stock === false || p.stock_available === undefined) return null;
+    const q = Number(p.stock_available);
+    const few = p.loose ? q <= 1 : q <= 5;
+    const text = p.loose ? `${qtyText(q, p.unit)} available` : few ? `Only ${q} left` : `${q} in stock`;
+    return <Text style={{ color: few ? "#b45309" : colors.primary, fontWeight: few ? "700" : "500", fontSize: 13 }}>{text}</Text>;
+  };
 
   const inBasket = cart.shop?.id === Number(id) ? cart.lines.length : 0;
 
@@ -111,12 +122,16 @@ export default function ShopScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: "600" }}>{p.name}</Text>
                   <Muted>{p.category_name ? `${p.category_name} · ` : ""}₹{Number(p.selling_price)}{p.loose ? ` per ${p.unit}` : ""}</Muted>
+                  {stockLine(p)}
                   {!p.in_stock ? <Text style={{ color: colors.danger }}>Out of stock</Text> : n > 0 ? (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <Button title="−" kind="ghost" onPress={() => change(p, -step(p))} />
-                      <Text style={{ fontWeight: "700", minWidth: 60, textAlign: "center" }}>{qtyText(n, p.loose ? p.unit : "pc")}</Text>
-                      <Button title="+" kind="ghost" onPress={() => change(p, step(p))} />
-                    </View>
+                    <>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Button title="−" kind="ghost" onPress={() => change(p, -step(p))} />
+                        <Text style={{ fontWeight: "700", minWidth: 60, textAlign: "center" }}>{qtyText(n, p.loose ? p.unit : "pc")}</Text>
+                        <Button title="+" kind="ghost" disabled={n >= available(p)} onPress={() => change(p, step(p))} />
+                      </View>
+                      {n >= available(p) ? <Muted>That is all the shop has right now.</Muted> : null}
+                    </>
                   ) : <Button title={p.loose ? "Add 250 g / 250 ml" : "Add"} kind="ghost" onPress={() => change(p, step(p))} />}
                 </View>
               </View>

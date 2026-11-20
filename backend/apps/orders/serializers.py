@@ -69,7 +69,7 @@ class PublicShopSerializer(serializers.ModelSerializer):
 
 
 class StoreProductSerializer(serializers.ModelSerializer):
-    """No purchase cost and no exact stock: only whether it is in stock."""
+    """No purchase cost. Shows how much stock is available (never below 0) and whether it can be ordered."""
     name = serializers.CharField(source="master_product.display_name")
     category = serializers.IntegerField(source="master_product.category_id", allow_null=True)
     category_name = serializers.SerializerMethodField()
@@ -78,10 +78,13 @@ class StoreProductSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     in_stock = serializers.SerializerMethodField()
     image_full = serializers.SerializerMethodField()
+    stock_available = serializers.SerializerMethodField()   # pieces (or kg / litres for loose goods) on the shelf
+    limit_to_stock = serializers.SerializerMethodField()    # False when the shop sells even without stock
 
     class Meta:
         model = ShopProduct
-        fields = ["id", "name", "category", "category_name", "unit", "loose", "selling_price", "image", "image_full","in_stock"]
+        fields = ["id", "name", "category", "category_name", "unit", "loose", "selling_price", "image", "image_full",
+                  "in_stock", "stock_available", "limit_to_stock"]
 
     def get_category_name(self, obj):
         c = obj.master_product.category
@@ -100,6 +103,12 @@ class StoreProductSerializer(serializers.ModelSerializer):
 
     def get_in_stock(self, obj):
         return obj.stock_qty > 0 or obj.shop.allow_negative_stock
+
+    def get_stock_available(self, obj):
+        return format(max(obj.stock_qty, Decimal("0")).normalize(), "f")   # "10", "4.5" - no trailing zeros
+
+    def get_limit_to_stock(self, obj):
+        return not obj.shop.allow_negative_stock
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
