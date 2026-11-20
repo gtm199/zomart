@@ -3,6 +3,7 @@ import { Alert, Text, View } from "react-native";
 import { api } from "../services/api";
 import { ShopProduct } from "../types";
 import { Button, Err, Input, Muted, colors } from "./ui";
+import { DateField } from "./DateField";
 
 /** Expiry batches of one product: each lot with its own expiry date and pieces left.
  *  Selling takes stock without a date first, then the batch that expires first (the server decides). */
@@ -58,7 +59,7 @@ export default function BatchPanel({ sp, canManage, onChanged }: { sp: ShopProdu
     [{ text: "Cancel", style: "cancel" }, { text: "Yes, close batch", onPress: () => run(`${b.id}/close/`) }]);
 
   const addDate = async () => {
-    if (!DATE.test(date.trim())) { setErr("Write the expiry date as YYYY-MM-DD, for example 2027-03-31."); return; }
+    if (!DATE.test(date.trim())) { setErr("Pick the expiry date."); return; }
     if (!(Number(count) > 0)) { setErr("Enter how many pieces have this date."); return; }
     if (await run("add/", { expiry_date: date.trim(), quantity: count.trim(), batch_no: batchNo.trim() })) {
       setAdding(false); setDate(""); setCount(""); setBatchNo("");
@@ -94,8 +95,9 @@ export default function BatchPanel({ sp, canManage, onChanged }: { sp: ShopProdu
       {canManage && undated > 0 && !adding ? <Button title="Add expiry date for stock in hand" kind="ghost" onPress={() => { setAdding(true); setCount(qty(data.undated_qty)); }} /> : null}
       {adding ? (
         <>
-          <Muted>Expiry date (YYYY-MM-DD)</Muted>
-          <Input placeholder="2027-03-31" value={date} onChangeText={setDate} />
+          <View style={{ flexDirection: "row", marginVertical: 4 }}>
+            <DateField label="Expiry date" value={date} onChange={setDate} placeholder="Pick the expiry date" />
+          </View>
           <Muted>How many pieces have this date (up to {qty(data.undated_qty)})</Muted>
           <Input keyboardType="decimal-pad" value={count} onChangeText={setCount} />
           <Muted>Batch number (optional, as printed on the pack)</Muted>

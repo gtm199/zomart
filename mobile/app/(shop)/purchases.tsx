@@ -1,7 +1,8 @@
 import * as Crypto from "expo-crypto";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ScrollView, Text } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { Button, Card, Err, Input, Muted, Screen } from "../../components/ui";
+import { DateField } from "../../components/DateField";
 import { api } from "../../services/api";
 import { gstinError, normalizeGstin } from "../../services/gst";
 import { Page, ShopProduct } from "../../types";
@@ -112,8 +113,10 @@ export default function Purchases() {
                 <Input keyboardType="decimal-pad" value={l.qty} onChangeText={(v) => setLine(l.sp.id, "qty", v)} />
                 <Muted>Cost per unit (₹)</Muted>
                 <Input keyboardType="decimal-pad" value={l.cost} onChangeText={(v) => setLine(l.sp.id, "cost", v)} />
-                <Muted>Expiry date (YYYY-MM-DD, optional)</Muted>
-                <Input placeholder="2027-03-31" value={l.expiry} onChangeText={(v) => setLine(l.sp.id, "expiry", v)} />
+                <View style={{ flexDirection: "row", marginVertical: 4 }}>
+                  <DateField label="Expiry date (optional)" value={l.expiry} onChange={(v) => setLine(l.sp.id, "expiry", v)}
+                    clearable placeholder="No expiry date" />
+                </View>
                 {l.expiry ? (<><Muted>Batch number (optional, as printed on the pack)</Muted><Input value={l.batchNo} autoCapitalize="characters" onChangeText={(v) => setLine(l.sp.id, "batchNo", v)} /></>) : null}
                 {gstOn && (
                   <>

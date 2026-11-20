@@ -10,14 +10,16 @@ type Props = {
   onChange: (v: string) => void;
   minimumDate?: Date;
   maximumDate?: Date;
+  clearable?: boolean;        // optional dates (expiry): shows "Clear", which sets ""
+  placeholder?: string;       // shown when no date is chosen
 };
 
-const pretty = (s: string) => {
+const pretty = (s: string, placeholder = "Select date") => {
   const d = parseIso(s);
-  return d ? d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }) : "Select date";
+  return d ? d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }) : placeholder;
 };
 
-export function DateField({ label, value, onChange, minimumDate, maximumDate }: Props) {
+export function DateField({ label, value, onChange, minimumDate, maximumDate, clearable, placeholder }: Props) {
   const current = parseIso(value) ?? new Date();
   const [iosOpen, setIosOpen] = useState(false);
   const [iosTemp, setIosTemp] = useState(current);
@@ -42,12 +44,17 @@ export function DateField({ label, value, onChange, minimumDate, maximumDate }: 
   return (
     <View style={{ flex: 1 }}>
       <Text style={{ color: colors.muted, fontSize: 13 }}>{label}</Text>
-      <Pressable
-        onPress={open}
-        style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, backgroundColor: colors.card, marginTop: 2 }}
-      >
-        <Text style={{ color: colors.text }}>📅  {pretty(value)}</Text>
-      </Pressable>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 }}>
+        <Pressable
+          onPress={open}
+          style={{ flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10, backgroundColor: colors.card }}
+        >
+          <Text style={{ color: parseIso(value) ? colors.text : colors.muted }}>📅  {pretty(value, placeholder)}</Text>
+        </Pressable>
+        {clearable && parseIso(value) ? (
+          <Text style={{ color: colors.danger, fontWeight: "600", padding: 6 }} onPress={() => onChange("")}>Clear</Text>
+        ) : null}
+      </View>
 
       {Platform.OS === "ios" && (
         <Modal visible={iosOpen} transparent animationType="fade" onRequestClose={() => setIosOpen(false)}>

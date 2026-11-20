@@ -9,6 +9,7 @@ import { refreshAfterGstChange } from "../../services/sync";
 import { ShopProduct } from "../../types";
 import ProductImage from "../../components/ProductImage";
 import BatchPanel from "../../components/BatchPanel";
+import { DateField } from "../../components/DateField";
 import { useSession } from "../../store/session";
 
 const WARN = "#b45309";
@@ -282,8 +283,10 @@ export default function Stock() {
                   <Input placeholder="0" keyboardType="decimal-pad" value={addQty} onChangeText={setAddQty} />
                   {addQty ? (
                     <>
-                      <Muted>Expiry date of this new stock (YYYY-MM-DD, optional - makes a new batch)</Muted>
-                      <Input placeholder="2027-03-31" value={addExpiry} onChangeText={setAddExpiry} />
+                      <View style={{ flexDirection: "row", marginVertical: 4 }}>
+                        <DateField label="Expiry date of this new stock (optional - makes a new batch)" value={addExpiry}
+                          onChange={setAddExpiry} clearable placeholder="No expiry date" />
+                      </View>
                       {addExpiry ? (
                         <>
                           <Muted>Batch number (optional)</Muted>
