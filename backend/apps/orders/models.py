@@ -9,7 +9,8 @@ class Shopper(models.Model):
     """A customer of the ordering app. Completely separate from shop staff (User) and from a shop's own Customer list."""
     phone = models.CharField(max_length=10, unique=True)
     name = models.CharField(max_length=150)
-    email = models.EmailField(blank=True, default="")  # used for password reset
+    email = models.EmailField(blank=True, default="")  # used for password reset; can also be used to sign in
+    username = models.CharField(max_length=30, blank=True, default="")  # optional; sign in with it too (any letter case)
     password = models.CharField(max_length=128)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -20,7 +21,9 @@ class Shopper(models.Model):
 
     class Meta:
         # one email per customer account (any letter case); blank is allowed
-        constraints = [models.UniqueConstraint(Lower("email"), condition=~models.Q(email=""), name="uniq_shopper_email_ci")]
+        constraints = [models.UniqueConstraint(Lower("email"), condition=~models.Q(email=""), name="uniq_shopper_email_ci"),
+                       models.UniqueConstraint(Lower("username"), condition=~models.Q(username=""),
+                                               name="uniq_shopper_username_ci")]
 
     def set_password(self, raw):
         self.password = make_password(raw)

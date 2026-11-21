@@ -14,7 +14,7 @@ from apps.shops.models import Shop
 from apps.shops.roles import Cap
 from apps.customers.models import CustomerLedger
 from core.tenancy import ShopAccess, ShopScopedMixin
-from services import credit_service, delivery_stats_service, order_service, shopper_password_reset_service, tracking_service
+from services import credit_service, delivery_stats_service, order_service, shopper_login_service, shopper_password_reset_service, tracking_service
 from services.exceptions import BusinessRuleError
 
 from .auth import ShopperTokenAuthentication
@@ -24,7 +24,8 @@ from .serializers import (AcceptSerializer, ApproveCreditSerializer, CompleteSer
                           RegisterSerializer, ShopperOrderSerializer, StoreProductSerializer,
                           StoreSettingsSerializer, VendorCreditSerializer, VendorOrderSerializer,
                           CustomerOrderSerializer, ReadySerializer,LocationSerializer, SavedAddressSerializer, clean_phone,
-                          ShopperForgotPasswordSerializer, ShopperResetPasswordSerializer, ShopperProfileSerializer)
+                          ShopperForgotPasswordSerializer, ShopperResetPasswordSerializer, ShopperProfileSerializer,
+                          username_taken)
 from .throttles import ShopperLoginThrottle
 
 
@@ -45,7 +46,8 @@ class ShopperMixin:
 
 # ---------------- customer: account ----------------
 def shopper_data(shopper):
-    return {"id": shopper.id, "name": shopper.name, "phone": shopper.phone, "email": shopper.email}
+    return {"id": shopper.id, "name": shopper.name, "phone": shopper.phone, "email": shopper.email,
+            "username": shopper.username}
 
 
 def token_payload(shopper):
@@ -65,7 +67,7 @@ class ShopperRegisterView(APIView):
         s = RegisterSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         shopper = Shopper(name=s.validated_data["name"].strip(), phone=s.validated_data["phone"],
-                          email=s.validated_data.get("email", ""))
+                          email=s.validated_data.get("email", ""), username=s.validated_data.get("username", ""))
         shopper.set_password(s.validated_data["password"])
         shopper.save()
         return Response(token_payload(shopper), status=status.HTTP_201_CREATED)
@@ -80,9 +82,10 @@ class ShopperLoginView(APIView):
     def post(self, request):
         s = LoginSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        shopper = Shopper.objects.filter(phone=clean_phone(s.validated_data["phone"]), is_active=True).first()
-        if shopper is None or not shopper.check_password(s.validated_data["password"]):
-            return Response({"detail": "Wrong mobile number or password."}, status=status.HTTP_400_BAD_REQUEST)
+        shopper = shopper_login_service.find_shopper(s.validated_data["login"], s.validated_data["password"])
+        if shopper is None:
+            return Response({"detail": "Wrong mobile number / username / email, or wrong password."},
+                            status=status.HTTP_400_BAD_REQUEST)
         return Response(token_payload(shopper))
 
 
@@ -142,6 +145,10 @@ class ShopperProfileView(ShopperMixin, APIView):
                 if new and Shopper.objects.filter(email__iexact=new).exclude(pk=shopper.pk).exists():
                     raise ValidationError({"email": ["This email is already used by another account."]})
                 shopper.email = new
+        if "username" in d and d["username"] != shopper.username:
+            if username_taken(d["username"], exclude_pk=shopper.pk):
+                raise ValidationError({"username": ["This username is taken. Try another."]})
+            shopper.username = d["username"]   # blank removes it; the mobile number always works
         if d.get("name", "").strip():
             shopper.name = d["name"].strip()
         shopper.save()

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { api, keep, setToken } from "../services/api";
 
-export type Shopper = { id: number; name: string; phone: string; email?: string };
+export type Shopper = { id: number; name: string; phone: string; email?: string; username?: string };
 type Ctx = {
   ready: boolean; shopper: Shopper | null;
   signIn: (p: { token: string; shopper: Shopper }) => Promise<void>;

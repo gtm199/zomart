@@ -10,13 +10,14 @@ export default function Register() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     setBusy(true); setErr("");
-    try { await signIn(await api("/store/auth/register/", { body: { name, phone, email: email.trim(), password } })); }
+    try { await signIn(await api("/store/auth/register/", { body: { name, phone, email: email.trim(), username: username.trim(), password } })); }
     catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   };
   return (
@@ -25,6 +26,8 @@ export default function Register() {
       <Input placeholder="Your name" value={name} onChangeText={setName} />
       <Input placeholder="Mobile number (10 digits)" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
       <Input placeholder="Email (to reset your password)" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
+      <Input placeholder="Username (optional, e.g. anita_22)" autoCapitalize="none" autoCorrect={false} value={username} onChangeText={setUsername} />
+      <Muted>You can sign in with your mobile number, username or email.</Muted>
       <Input placeholder="Password (at least 6 characters)" secureTextEntry value={password} onChangeText={setPassword} />
       <Muted>The shop sees your name and number only when you place an order with it.</Muted>
       <Err msg={err} />

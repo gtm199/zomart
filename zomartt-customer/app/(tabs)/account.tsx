@@ -22,6 +22,21 @@ export default function Account() {
   useEffect(() => { setEmail(shopper?.email ?? ""); }, [shopper?.email]);
   const emailChanged = email.trim().toLowerCase() !== (shopper?.email ?? "").toLowerCase();
 
+  // username: another way to sign in (besides the mobile number and email)
+  const [username, setUsername] = useState(shopper?.username ?? "");
+  const [userErr, setUserErr] = useState("");
+  const [userMsg, setUserMsg] = useState("");
+  useEffect(() => { setUsername(shopper?.username ?? ""); }, [shopper?.username]);
+  const usernameChanged = username.trim() !== (shopper?.username ?? "");
+  const saveUsername = async () => {
+    setSaving(true); setUserErr(""); setUserMsg("");
+    try {
+      const s = await api<Shopper>("/store/auth/profile/", { method: "PATCH", body: { username: username.trim() } });
+      await update(s);
+      setUserMsg(s.username ? `Saved. You can now sign in with "${s.username}".` : "Username removed. Sign in with your mobile number or email.");
+    } catch (e: any) { setUserErr(e.message); } finally { setSaving(false); }
+  };
+
   useFocusEffect(useCallback(() => {
     api<CreditRow[]>("/store/credit/").then((r) => { setRows(r); setErr(""); }).catch((e) => setErr(e.message));
   }, []));
@@ -42,6 +57,18 @@ export default function Account() {
         <Card>
           <Text style={{ fontWeight: "700", fontSize: 16 }}>{shopper?.name}</Text>
           <Muted>{shopper?.phone}</Muted>
+        </Card>
+
+        <Card>
+          <Text style={{ fontWeight: "700", marginBottom: 4 }}>Username</Text>
+          <Muted>Sign in with your mobile number, username or email. 3-30 letters, numbers, dot or underscore, starting with a letter.</Muted>
+          <Input placeholder="e.g. anita_22" autoCapitalize="none" autoCorrect={false} value={username} maxLength={30}
+            onChangeText={(v) => { setUsername(v); setUserMsg(""); setUserErr(""); }} />
+          {usernameChanged && (
+            <Button title={saving ? "Saving..." : username.trim() ? "Save username" : "Remove username"} onPress={saveUsername} disabled={saving} />
+          )}
+          <Err msg={userErr} />
+          {!!userMsg && <Text style={{ color: colors.primary }}>{userMsg}</Text>}
         </Card>
 
         <Card>

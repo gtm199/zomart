@@ -16,11 +16,36 @@ def clean_phone(value):
     return digits[-10:] if len(digits) >= 10 else digits
 
 
+class UsernameField(serializers.CharField):
+    """Optional sign-in name: 3-30 letters, digits, dot or underscore, starting with a letter (so it can never look
+    like a mobile number or an email). Stored as typed; matched in any letter case."""
+
+    def __init__(self, **kw):
+        super().__init__(max_length=30, required=False, allow_blank=True, **kw)
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data).strip()
+        if value and not re.fullmatch(r"[A-Za-z][A-Za-z0-9._]{2,29}", value):
+            raise serializers.ValidationError(
+                "Username: 3 to 30 letters, numbers, dot or underscore, starting with a letter (for example anita_22).")
+        return value
+
+
+def username_taken(value, exclude_pk=None):
+    return bool(value) and Shopper.objects.filter(username__iexact=value).exclude(pk=exclude_pk).exists()
+
+
 class RegisterSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     phone = serializers.CharField(max_length=20)
     email = serializers.EmailField(required=False, allow_blank=True, default="")
+    username = UsernameField(default="")
     password = serializers.CharField(write_only=True, min_length=6)
+
+    def validate_username(self, value):
+        if username_taken(value):
+            raise serializers.ValidationError("This username is taken. Try another.")
+        return value
 
     def validate_phone(self, value):
         phone = clean_phone(value)
@@ -38,8 +63,16 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    phone = serializers.CharField(max_length=20)
+    """`login` is the mobile number, username or email. Older app versions send `phone`; it still works."""
+    login = serializers.CharField(max_length=254, required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=254, required=False, allow_blank=True)
     password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        attrs["login"] = (attrs.get("login") or attrs.get("phone") or "").strip()
+        if not attrs["login"]:
+            raise serializers.ValidationError({"login": ["Enter your mobile number, username or email."]})
+        return attrs
 
 
 class ShopperForgotPasswordSerializer(serializers.Serializer):
@@ -55,6 +88,7 @@ class ShopperResetPasswordSerializer(serializers.Serializer):
 class ShopperProfileSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150, required=False)
     email = serializers.EmailField(required=False, allow_blank=True)
+    username = UsernameField()
     current_password = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
 
