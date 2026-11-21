@@ -246,7 +246,7 @@ class ShopperOrderViewSet(ShopperMixin, mixins.ListModelMixin, mixins.RetrieveMo
     serializer_class = CustomerOrderSerializer
 
     def get_queryset(self):
-        return Order.objects.filter(shopper=self.request.user).select_related("shop").prefetch_related("items", "events")
+        return Order.objects.filter(shopper=self.request.user).select_related("shop").prefetch_related("items", "items__shop_product__master_product", "events")
 
     def create(self, request, *args, **kwargs):
         s = PlaceOrderSerializer(data=request.data)
@@ -288,7 +288,7 @@ class OrderTrackView(ShopperMixin, APIView):
     
 # ---------------- shop: orders ----------------
 class OrderViewSet(ShopScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    queryset = Order.objects.prefetch_related("items", "events").select_related("shop", "rider")
+    queryset = Order.objects.prefetch_related("items", "items__shop_product__master_product", "events").select_related("shop", "rider")
     serializer_class = VendorOrderSerializer
     required_caps = {"*": Cap.MANAGE_ORDERS}
 

@@ -16,12 +16,12 @@ from .serializers import DeliverSerializer, LocationSerializer, RiderOrderSerial
 
 
 def _fresh(order_id):
-    return Order.objects.select_related("shop", "track", "address").prefetch_related("items").get(pk=order_id)
+    return Order.objects.select_related("shop", "track", "address").prefetch_related("items", "items__shop_product__master_product").get(pk=order_id)
 
 
 class RiderOrderViewSet(ShopScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """The delivery app. A rider sees only the deliveries the shop has given to them."""
-    queryset = Order.objects.select_related("shop", "track", "address").prefetch_related("items")
+    queryset = Order.objects.select_related("shop", "track", "address").prefetch_related("items", "items__shop_product__master_product")
     serializer_class = RiderOrderSerializer
     required_caps = {"*": Cap.DELIVER}
 

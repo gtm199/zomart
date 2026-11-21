@@ -8,7 +8,7 @@ import { useSession } from "../store/session";
 export type Order = {
   id: number; number: number; status: string; customer_name: string; customer_phone: string; delivery_address: string;
   delivery_lat: number | null; delivery_lng: number | null; has_position: boolean; note: string; payment_method: string; on_credit: boolean;
-  collect_amount: string; total: string; items: { product_name: string; unit: string; quantity: string }[];
+  collect_amount: string; total: string; items: { product_name: string; unit: string; quantity: string; image_tiny?: string | null; image_thumb?: string | null }[];
   shop_name: string; shop_phone: string; shop_lat: number | null; shop_lng: number | null;
   trip_started: boolean; arrived: boolean; pin_locked: boolean;
 };

@@ -1,0 +1,12 @@
+{% extends "admin/change_form.html" %}
+{% block object-tools-items %}
+  {% if original and not original.image %}
+    <li>
+      <form method="post" action="{% url 'admin:catalog_recheck_image' original.pk %}" style="display:inline">{% csrf_token %}
+        <button type="submit" class="historylink" style="border:0;cursor:pointer"
+                title="Looks for an image on Cloudinary with this product's barcode as the Public ID">Re-check image on Cloudinary</button>
+      </form>
+    </li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

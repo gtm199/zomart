@@ -8,6 +8,7 @@ import type { Shop } from "../(tabs)/index";
 import ProductImage from "../../components/ProductImage";
 
 type Product = { id: number; name: string; category: number | null; category_name: string; unit: string; loose: boolean; selling_price: string; image: string; image_full: string; in_stock: boolean;
+  image_thumb?: string | null; image_medium?: string | null; image_tiny?: string | null;   // new sizes (null = no image)
   stock_available?: string; limit_to_stock?: boolean };   // how much is on the shelf; false = the shop sells without stock
 type Category = { id: number; name: string; parent: number | null; sort_order: number; product_count: number };
 type Page = { count: number; next: string | null; results: Product[] };
@@ -62,7 +63,7 @@ export default function ShopScreen() {
   const available = (p: Product) => (p.limit_to_stock === false || p.stock_available === undefined ? Infinity : Number(p.stock_available));
   const change = (p: Product, delta: number) => {
     const want = Math.min(Math.max(0, cart.qtyOf(p.id) + delta), available(p));   // never more than the shop has
-    cart.setQty(cartShop, { id: p.id, name: p.name, price: p.selling_price, unit: p.unit, loose: p.loose, image: p.image }, want);
+    cart.setQty(cartShop, { id: p.id, name: p.name, price: p.selling_price, unit: p.unit, loose: p.loose, image: p.image_thumb || p.image }, want);
   };
   const stockLine = (p: Product) => {
     if (!p.in_stock || p.limit_to_stock === false || p.stock_available === undefined) return null;
@@ -118,7 +119,7 @@ export default function ShopScreen() {
           return (
             <Card>
               <View style={{ flexDirection: "row", gap: 12 }}>
-                <ProductImage uri={p.image} fullUri={p.image_full} name={p.name} size={84} />
+                <ProductImage uri={p.image_thumb || p.image} mediumUri={p.image_medium} fullUri={p.image_full || p.image_medium} name={p.name} size={84} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: "600" }}>{p.name}</Text>
                   <Muted>{p.category_name ? `${p.category_name} · ` : ""}₹{Number(p.selling_price)}{p.loose ? ` per ${p.unit}` : ""}</Muted>

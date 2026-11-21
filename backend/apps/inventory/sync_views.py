@@ -13,7 +13,7 @@ from apps.shops.roles import Cap
 from core.tenancy import ShopAccess
 
 from .models import ShopProduct
-from core.media import thumb_url
+from core.media import image_url, thumb_url
 
 def picture(request, product):
     return thumb_url(product.image, request)
@@ -54,7 +54,9 @@ class SyncView(APIView):
                 "stock_qty": str(p.stock_qty),
                 "is_enabled": p.is_enabled and p.master_product.status == MasterProduct.Status.ACTIVE,
                 "whole": p.master_product.unit == MasterProduct.Unit.PIECE,
-                "image": picture(request, p.master_product),
+                "image": picture(request, p.master_product),       # small picture - kept for installed apps
+                "image_thumb": image_url(p.master_product.image, "thumb", request),
+                "image_medium": image_url(p.master_product.image, "medium", request),
                 "unit": p.master_product.unit,
                 "loose": p.master_product.is_loose,
                 # GST shops only: lets the phone block unrated products and add tax-on-top prices offline

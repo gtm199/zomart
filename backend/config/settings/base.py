@@ -113,6 +113,9 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", BASE_DIR / "media"))
+# Cloudinary cloud name (not a secret). Used to build image addresses from public IDs (barcodes); if empty, the
+# cloud part of CLOUDINARY_URL is used. The API key/secret are never needed for addresses.
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip()
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 _big = "100000/min"
@@ -133,6 +136,7 @@ REST_FRAMEWORK = {
         "user": _big if TESTING else "600/min",
         "auth": _big if TESTING else "10/min",
         "login_user": _big if TESTING else "8/min",
+        "image_sync": _big if TESTING else "120/min",   # admin image sync / re-check (each call checks <= 200)
     },
 }
 

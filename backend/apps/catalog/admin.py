@@ -4,12 +4,12 @@ from django.db.models import Count
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils.html import format_html
-from core.media import thumb_url
+from core.media import image_url, thumb_url
 
-from services import barcode_service, catalog_import_service, catalog_service, export_service
+from services import barcode_service, catalog_import_service, catalog_service, export_service, image_sync_service
 from services.exceptions import BusinessRuleError
 
-from .models import Brand, Category, MasterProduct, ProductBarcode, ProductChangeLog, ProductSuggestion
+from .models import Brand, Category, ImageSyncRun, MasterProduct, ProductBarcode, ProductChangeLog, ProductSuggestion
 
 S = MasterProduct.Status
 
@@ -73,12 +73,14 @@ class VerifiedFilter(admin.SimpleListFilter):
 @admin.register(MasterProduct)
 class MasterProductAdmin(admin.ModelAdmin):
     change_list_template = "admin/catalog/masterproduct/change_list.html"
+    change_form_template = "admin/catalog/masterproduct/change_form.html"
     list_display = ("thumb", "name", "brand", "pack_size", "unit", "category", "status", "mrp", "verified", "shops")
     list_filter = ("status", ImageFilter, VerifiedFilter, "category", "brand")
     search_fields = ("name", "brand__name", "barcodes__code", "search_keywords")
     inlines = [BarcodeInline]
     readonly_fields = ("image_preview", "mrp_verified_by", "mrp_verified_at", "merged_into")
-    actions = ["submit_for_review", "make_active", "make_inactive", "mark_verified", "export_csv", "export_xlsx"]
+    actions = ["submit_for_review", "make_active", "make_inactive", "mark_verified", "recheck_images",
+               "export_csv", "export_xlsx"]
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(shop_total=Count("shopproduct", distinct=True))
@@ -89,7 +91,7 @@ class MasterProductAdmin(admin.ModelAdmin):
 
     @admin.display(description="Current image")
     def image_preview(self, obj):
-        return format_html('<img src="{}" style="max-height:160px">', obj.image.url) if obj and obj.image else "No image yet"
+        return format_html('<img src="{}" style="max-height:160px">', image_url(obj.image, "medium")) if obj and obj.image else "No image yet"
 
     @admin.display(boolean=True, description="MRP verified")
     def verified(self, obj):
@@ -156,6 +158,38 @@ class MasterProductAdmin(admin.ModelAdmin):
                 self.message_user(request, f"{p.display_name}: {exc.message}", messages.WARNING)
         self.message_user(request, f"{done} product(s) marked verified.")
 
+    # ---- images from Cloudinary (HEAD checks only, never the Admin API) ----
+    def _recheck(self, request, products):
+        if not request.user.has_perm("catalog.change_masterproduct"):
+            self.message_user(request, "You cannot change catalogue products.", messages.ERROR)
+            return
+        allowed = image_sync_service.recheck_allowance(request.user, len(products))
+        if allowed == 0:
+            self.message_user(request, "Re-check limit reached for this hour. Try again later, or use Sync on the "
+                                       "dashboard.", messages.WARNING)
+            return
+        c = image_sync_service.recheck_many(products[:allowed], request.user)
+        self.message_user(request, (
+            f"Re-checked {allowed} product(s): {c['attached']} image(s) attached, {c['missing']} not on Cloudinary, "
+            f"{c['unverified']} could not be verified (unchanged), {c['already'] + c['kept']} already had an image, "
+            f"{c['no_barcode']} without barcode."), messages.SUCCESS if c["attached"] else messages.INFO)
+        if allowed < len(products):
+            self.message_user(request, f"Only the first {allowed} were checked (at most "
+                                       f"{image_sync_service.RECHECK_MAX} at a time). Use Sync for large sets.",
+                              messages.WARNING)
+
+    @admin.action(description="Re-check image on Cloudinary (attach if found, never overwrite)")
+    def recheck_images(self, request, queryset):
+        self._recheck(request, list(queryset.order_by("id")[:image_sync_service.RECHECK_MAX + 1]))
+
+    def recheck_one_view(self, request, object_id):
+        if request.method != "POST":
+            return redirect("admin:catalog_masterproduct_change", object_id)
+        product = MasterProduct.objects.filter(pk=object_id).first()
+        if product is not None:
+            self._recheck(request, [product])
+        return redirect("admin:catalog_masterproduct_change", object_id)
+
     @admin.action(description="Export selected to CSV")
     def export_csv(self, request, queryset):
         header, rows = catalog_import_service.export_rows(queryset)
@@ -174,6 +208,8 @@ class MasterProductAdmin(admin.ModelAdmin):
         extra = [
             path("dashboard/", self.admin_site.admin_view(self.dashboard_view), name="catalog_dashboard"),
             path("import/", self.admin_site.admin_view(self.import_view), name="catalog_import"),
+            path("<path:object_id>/recheck-image/", self.admin_site.admin_view(self.recheck_one_view),
+                 name="catalog_recheck_image"),
         ]
         return extra + super().get_urls()
 
@@ -197,7 +233,13 @@ class MasterProductAdmin(admin.ModelAdmin):
              f"{sug}?status__exact=pending", ""),
         ]
         top = MasterProduct.objects.annotate(n=Count("shopproduct", distinct=True)).filter(n__gt=0).order_by("-n")[:15]
-        ctx = dict(self.admin_site.each_context(request), title="Catalogue dashboard", stats=stats, top=top)
+        no_image = base.filter(image="", merged_into__isnull=True)
+        ctx = dict(self.admin_site.each_context(request), title="Catalogue dashboard", stats=stats, top=top,
+                   no_image_total=no_image.count(), no_image_url=f"{cl}?image=missing",
+                   sync_categories=Category.objects.filter(parent=None).order_by("name"),
+                   sync_brands=Brand.objects.order_by("name"),
+                   sync_runs=ImageSyncRun.objects.select_related("started_by", "category", "brand")[:10],
+                   can_sync=request.user.is_staff and request.user.has_perm("catalog.change_masterproduct"))
         return render(request, "admin/catalog/dashboard.html", ctx)
 
     def import_view(self, request):
@@ -205,15 +247,18 @@ class MasterProductAdmin(admin.ModelAdmin):
                    can_activate=catalog_service.can_approve(request.user))
         if request.method == "POST" and "commit" in request.POST:
             rows = request.session.pop("catalog_import_rows", None)
+            known = request.session.pop("catalog_import_images", None) or {}
+            replace = bool(request.session.pop("catalog_import_replace", False))
             if not rows:
                 self.message_user(request, "The preview expired. Upload the file again.", messages.ERROR)
                 return redirect("admin:catalog_import")
-            good, errors = catalog_import_service.validate_rows(rows)  # check again, data may have changed
+            # check the rows again (data may have changed) but reuse the preview's image answers: equal totals
+            p = catalog_import_service.plan(rows, replace_images=replace, known=known)
             activate = bool(request.POST.get("activate")) and ctx["can_activate"]
-            n = catalog_import_service.commit_rows(good, activate=activate)
-            self.message_user(request, f"Imported {n} product(s) as {'active' if activate else 'draft'}; "
-                                       f"{len(errors)} row(s) skipped.")
-            return redirect("admin:catalog_masterproduct_changelist")
+            r = catalog_import_service.commit_plan(p, activate=activate, user=request.user)
+            ctx.update(report=r, missing=p["missing"], errors=p["errors"], activated=activate,
+                       title="Import finished")
+            return render(request, "admin/catalog/import.html", ctx)
         if request.method == "POST" and request.FILES.get("file"):
             f = request.FILES["file"]
             try:
@@ -227,9 +272,14 @@ class MasterProductAdmin(admin.ModelAdmin):
             except Exception as exc:
                 self.message_user(request, f"Could not read the file: {exc}", messages.ERROR)
                 return redirect("admin:catalog_import")
-            good, errors = catalog_import_service.validate_rows(rows)
+            replace = bool(request.POST.get("replace_images"))
+            p = catalog_import_service.plan(rows, replace_images=replace)
             request.session["catalog_import_rows"] = rows
-            ctx.update(previewed=True, good_count=len(good), errors=errors, sample=good[:20], filename=f.name)
+            request.session["catalog_import_images"] = p["statuses"]
+            request.session["catalog_import_replace"] = replace
+            ctx.update(previewed=True, good_count=len(p["good"]), errors=p["errors"], sample=p["good"][:20],
+                       filename=f.name, totals=p["totals"], missing=p["missing"], large_file=p["large_file"],
+                       replace_images=replace, existing=p["existing"])
         return render(request, "admin/catalog/import.html", ctx)
 
 
@@ -272,6 +322,32 @@ class ProductChangeLogAdmin(admin.ModelAdmin):
     list_display = ("changed_at", "product", "field", "old_value", "new_value", "changed_by")
     list_filter = ("field",)
     search_fields = ("product__name",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+# ---------------- image sync run log (read-only) ----------------
+@admin.register(ImageSyncRun)
+class ImageSyncRunAdmin(admin.ModelAdmin):
+    """What "Sync images from Cloudinary" did: who, when, options, totals. Written only by the sync service."""
+    list_display = ("id", "started_at", "started_by", "dry_run", "replace", "category", "brand", "status",
+                    "processed", "attached", "still_missing", "unverified", "skipped", "missing_csv")
+    list_filter = ("status", "dry_run", "replace")
+    readonly_fields = [f.name for f in ImageSyncRun._meta.fields] + ["missing_csv"]
+    exclude = ("missing_barcodes",)
+
+    @admin.display(description="Still missing")
+    def missing_csv(self, obj):
+        if not obj.missing_barcodes:
+            return "-"
+        return format_html('<a href="/api/v1/platform/catalog/image-sync/{}/missing.csv">Download CSV ({})</a>',
+                           obj.pk, len(obj.missing_barcodes))
 
     def has_add_permission(self, request):
         return False

@@ -5,6 +5,7 @@ export type Master = {
   tax_rate: string | null; barcodes: string[]; my_listing_id: number | null; 
   unit: string; is_loose: boolean; category?: number | null; category_name?: string;
   image?: string | null; thumbnail?: string | null;
+  image_thumb?: string | null; image_medium?: string | null; image_tiny?: string | null;   // new sizes (null = no image)
 };
 export type ShopProduct = {
   id: number; master_product: Master; selling_price: string; purchase_cost?: string;

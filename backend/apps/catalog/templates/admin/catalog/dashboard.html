@@ -12,6 +12,114 @@
     {% endfor %}
     </tbody>
   </table>
+
+  {% if can_sync %}
+  <h2 style="margin-top:24px">Sync images from Cloudinary</h2>
+  <p>Attaches images that are already on Cloudinary to products in the catalogue. The image is found by the product's
+     <strong>barcode as the Public ID</strong> (each barcode is tried, the primary first). Nothing is created or deleted;
+     images that cannot be verified are left as they are. <a href="{{ no_image_url }}">{{ no_image_total }} product(s)</a>
+     have no image now.</p>
+  <form id="sync-form" onsubmit="return false">{% csrf_token %}
+    <p>
+      <label><input type="radio" name="scope" value="empty" checked> Only products with no image</label>&nbsp;&nbsp;
+      <label><input type="radio" name="scope" value="replace"> Replace existing images too</label>
+    </p>
+    <p>
+      <label>Category <select name="category"><option value="">All</option>
+        {% for c in sync_categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select></label>
+      &nbsp;&nbsp;
+      <label>Brand <select name="brand"><option value="">All</option>
+        {% for b in sync_brands %}<option value="{{ b.pk }}">{{ b.name }}</option>{% endfor %}</select></label>
+    </p>
+    <p>
+      <button type="button" class="button" id="sync-preview">Preview (changes nothing)</button>
+      <button type="button" class="button default" id="sync-run">Sync images</button>
+      <button type="button" class="button" id="sync-stop" style="display:none">Pause</button>
+    </p>
+  </form>
+  <div id="sync-progress" style="display:none;margin:8px 0">
+    <div style="background:#e5e7eb;border-radius:6px;height:16px;width:100%;max-width:600px">
+      <div id="sync-bar" style="background:#0f766e;height:16px;border-radius:6px;width:0%"></div>
+    </div>
+    <p id="sync-status"></p>
+  </div>
+  <div id="sync-result"></div>
+
+  <h3 style="margin-top:16px">Recent syncs</h3>
+  <table style="width:100%">
+    <thead><tr><th>#</th><th>When</th><th>Who</th><th>Kind</th><th>Options</th><th>Status</th><th>Looked at</th>
+      <th>Attached</th><th>Still missing</th><th>Not verified</th><th>Skipped</th><th></th></tr></thead>
+    <tbody>
+    {% for r in sync_runs %}
+      <tr><td>{{ r.pk }}</td><td>{{ r.started_at|date:"d M Y H:i" }}</td><td>{{ r.started_by|default:"command line" }}</td>
+          <td>{% if r.dry_run %}Preview{% else %}Sync{% endif %}</td>
+          <td>{% if r.replace %}replace; {% endif %}{% if r.category %}{{ r.category }}; {% endif %}{% if r.brand %}{{ r.brand }}{% endif %}</td>
+          <td>{{ r.status }}</td><td>{{ r.processed }} / {{ r.total }}</td><td>{{ r.attached }}</td>
+          <td>{{ r.still_missing }}</td><td>{{ r.unverified }}</td><td>{{ r.skipped }}</td>
+          <td>{% if r.missing_barcodes %}<a href="/api/v1/platform/catalog/image-sync/{{ r.pk }}/missing.csv">Missing list (CSV)</a>{% endif %}</td></tr>
+    {% empty %}
+      <tr><td colspan="12">No sync yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <script>
+  (function () {
+    const API = "/api/v1/platform/catalog/image-sync/";
+    const form = document.getElementById("sync-form");
+    const csrf = form.querySelector("input[name=csrfmiddlewaretoken]").value;
+    const bar = document.getElementById("sync-bar"), statusEl = document.getElementById("sync-status");
+    const resultEl = document.getElementById("sync-result"), stopBtn = document.getElementById("sync-stop");
+    const buttons = [document.getElementById("sync-preview"), document.getElementById("sync-run")];
+    let stopping = false;
+
+    async function call(url, body) {
+      const r = await fetch(url, { method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrf }, body: JSON.stringify(body || {}) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.detail || ("Request failed (" + r.status + ")"));
+      return data;
+    }
+    function show(r) {
+      const done = r.processed, all = r.processed + r.remaining;
+      bar.style.width = (all ? Math.round(100 * done / all) : 100) + "%";
+      statusEl.textContent = (r.dry_run ? "Preview: " : "") + done + " of " + all + " product(s) looked at - " +
+        r.attached + (r.dry_run ? " would be attached" : " attached") + ", " + r.still_missing + " still missing, " +
+        r.unverified + " could not be verified, " + r.skipped + " skipped.";
+    }
+    function finish(r, paused) {
+      buttons.forEach(b => b.disabled = false); stopBtn.style.display = "none";
+      const link = r.still_missing ? ' <a href="' + API + r.run + '/missing.csv">Download the still-missing list (CSV)</a>' : "";
+      resultEl.innerHTML = "<p><strong>" + (paused ? "Paused - press the same button again to continue. " :
+        (r.dry_run ? "Preview finished - nothing was changed. " : "Sync finished. ")) + "</strong>" + link + "</p>";
+    }
+    async function go(dryRun) {
+      const replace = form.scope.value === "replace";
+      if (replace && !dryRun && !confirm("Replace images that products already have, with the image found by barcode? " +
+          "Images that cannot be verified are never replaced.")) return;
+      buttons.forEach(b => b.disabled = true); stopBtn.style.display = ""; stopping = false;
+      resultEl.innerHTML = ""; document.getElementById("sync-progress").style.display = "";
+      try {
+        let r = await call(API, { dry_run: dryRun, replace: replace,
+          category: form.category.value || null, brand: form.brand.value || null });
+        show(r);
+        while (!r.finished && !stopping) {
+          r = await call(API + r.run + "/step/", { batch: 50 });
+          show(r);
+        }
+        finish(r, !r.finished);
+      } catch (e) {
+        buttons.forEach(b => b.disabled = false); stopBtn.style.display = "none";
+        resultEl.innerHTML = '<p style="color:#b91c1c">' + e.message + " - nothing was lost; press the button again to continue.</p>";
+      }
+    }
+    buttons[0].onclick = () => go(true);
+    buttons[1].onclick = () => go(false);
+    stopBtn.onclick = () => { stopping = true; };
+  })();
+  </script>
+  {% endif %}
+
   <h2 style="margin-top:24px">Most used products</h2>
   <table style="width:100%">
     <thead><tr><th>Product</th><th>Shops using it</th><th>Status</th></tr></thead>

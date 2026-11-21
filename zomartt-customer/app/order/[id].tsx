@@ -1,12 +1,14 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, Linking, ScrollView, Text } from "react-native";
+import { Alert, Linking, ScrollView, Text, View } from "react-native";
 import { Button, Card, Err, Muted, Screen, colors } from "../../components/ui";
 import { api } from "../../services/api";
 import { STATUS } from "../(tabs)/orders";
 import LocationPicker from "../../components/LocationPicker";
+import ProductImage from "../../components/ProductImage";
 
-type Item = { id: number; product_name: string; unit: string; ordered_quantity: string; quantity: string; unit_price: string; line_total: string };
+type Item = { id: number; product_name: string; unit: string; ordered_quantity: string; quantity: string; unit_price: string; line_total: string;
+  image_tiny?: string | null; image_thumb?: string | null };
 type Order = {
   id: number; number: number; shop_name: string; shop_phone: string; status: string; fulfilment: string; delivery_address: string;
   note: string; payment_method: string; subtotal: string; delivery_fee: string; total: string; reason: string; items: Item[];
@@ -66,10 +68,13 @@ export default function OrderDetail() {
         )}
         <Card>
           {o.items.map((i) => (
-            <Text key={i.id}>
-              {i.product_name} × {Number(i.quantity)}{i.unit ? ` ${i.unit}` : ""} = ₹{i.line_total}
-              {Number(i.quantity) !== Number(i.ordered_quantity) ? `  (you ordered ${Number(i.ordered_quantity)})` : ""}
-            </Text>
+            <View key={i.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 2 }}>
+              <ProductImage uri={i.image_tiny} fullUri={i.image_thumb} name={i.product_name} size={36} />
+              <Text style={{ flex: 1 }}>
+                {i.product_name} × {Number(i.quantity)}{i.unit ? ` ${i.unit}` : ""} = ₹{i.line_total}
+                {Number(i.quantity) !== Number(i.ordered_quantity) ? `  (you ordered ${Number(i.ordered_quantity)})` : ""}
+              </Text>
+            </View>
           ))}
           <Text>Items ₹{o.subtotal}</Text>
           {o.fulfilment === "delivery" && <Text>Delivery ₹{o.delivery_fee}</Text>}

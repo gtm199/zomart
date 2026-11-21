@@ -112,7 +112,7 @@ export default function Catalogue() {
         renderItem={({ item: m }) => (
           <Card>
             <View style={{ flexDirection: "row", gap: 12 }}>
-              <ProductImage uri={m.thumbnail || m.image} fullUri={m.image || m.thumbnail} name={m.display_name} size={64} />
+              <ProductImage uri={m.image_thumb || m.thumbnail || m.image} mediumUri={m.image_medium} fullUri={m.image || m.image_medium} name={m.display_name} size={64} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontWeight: "600" }}>{m.display_name}</Text>
                 <Muted>{m.category_name ? `${m.category_name} · ` : ""}MRP {m.mrp ?? "n/a"}</Muted>

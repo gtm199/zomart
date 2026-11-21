@@ -1,0 +1,6 @@
+name,brand,category,pack_size,unit,barcode,mrp,tax_rate,description,image
+Image Test One,ImageTest,Snacks,1,pc,690225305747,10,5,Has its image on Cloudinary (public ID = barcode),
+Image Test Two,ImageTest,Snacks,1,pc,8909990000019,20,5,Image NOT on Cloudinary yet - upload it later and run Sync,
+Image Test Three,ImageTest,Snacks,1,pc,8909990000026,30,5,Uses the image column instead of its barcode,690225305747
+Image Test Four,ImageTest,Snacks,1,pc,6.9E+11,40,5,Bad barcode (spreadsheet damage) - must be reported,
+Image Test Five,ImageTest,Snacks,1,pc,,50,5,No barcode - imported without image,

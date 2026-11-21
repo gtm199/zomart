@@ -218,7 +218,7 @@ export default function Stock() {
           return (
             <Card>
               <View style={{ flexDirection: "row", gap: 12 }}>
-                <ProductImage uri={sp.master_product.thumbnail || sp.master_product.image} fullUri={sp.master_product.image || sp.master_product.thumbnail} name={sp.master_product.display_name} size={64} />
+                <ProductImage uri={sp.master_product.image_thumb || sp.master_product.thumbnail || sp.master_product.image} mediumUri={sp.master_product.image_medium} fullUri={sp.master_product.image || sp.master_product.image_medium} name={sp.master_product.display_name} size={64} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: "600" }}>{sp.master_product.display_name}</Text>
                   {sp.master_product.category_name ? <Muted>{sp.master_product.category_name}</Muted> : null}

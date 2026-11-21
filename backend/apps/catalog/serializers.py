@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from rest_framework import serializers
-from core.media import thumb_url
+from core.media import full_url, image_fields, thumb_url
 
 from services import barcode_service, catalog_service
 
@@ -28,12 +28,22 @@ class MasterProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True, default="")
     barcodes = serializers.SlugRelatedField(many=True, read_only=True, slug_field="code")
     my_listing_id = serializers.SerializerMethodField()
-    thumbnail = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()        # large picture (tap to open) - kept for installed apps
+    thumbnail = serializers.SerializerMethodField()    # small picture - kept for installed apps
 
     class Meta:
         model = MasterProduct
         fields = ["id", "display_name", "name", "brand_name", "category", "category_name", "pack_size", "unit",
-                  "description", "image", "thumbnail", "mrp", "tax_rate", "is_loose", "status", "barcodes", "my_listing_id"]
+                  "description", "image", "thumbnail",   # + image_thumb / image_medium / image_tiny (below)
+                  "mrp", "tax_rate", "is_loose", "status", "barcodes", "my_listing_id"]
+
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        data.update(image_fields(obj.image, self.context.get("request")))   # null when there is no image
+        return data
+
+    def get_image(self, obj):
+        return full_url(obj.image, self.context.get("request")) or None
 
     def get_my_listing_id(self, obj):
         return self.context.get("listing_map", {}).get(obj.id)

@@ -4,11 +4,34 @@
 {% endblock %}
 {% block content %}
 <div id="content-main">
-  <p>Columns: <code>name, brand, category, pack_size, unit, barcode, mrp, tax_rate, description</code>.
-     Units: g, kg, ml, l, pc. Format the barcode column as <strong>Text</strong> in Excel.
+  {% if report %}
+    <h2>Import finished</h2>
+    <table>
+      <tr><th style="text-align:left">Products created</th><td>{{ report.created }} ({% if activated %}active{% else %}draft{% endif %})</td></tr>
+      <tr><th style="text-align:left">Images found and attached</th><td>{{ report.images_found }}</td></tr>
+      <tr><th style="text-align:left">Images missing (product imported without image)</th><td>{{ report.images_missing }}</td></tr>
+      <tr><th style="text-align:left">Images that could not be verified (left empty, run Sync later)</th><td>{{ report.images_unverified }}</td></tr>
+      <tr><th style="text-align:left">Images not checked (large file, run Sync)</th><td>{{ report.images_not_checked }}</td></tr>
+      <tr><th style="text-align:left">Products without barcode (no image to look for)</th><td>{{ report.no_barcode }}</td></tr>
+      <tr><th style="text-align:left">Images attached to products already in the catalogue</th><td>{{ report.existing_images_attached }}</td></tr>
+      <tr><th style="text-align:left">Rows skipped (errors)</th><td>{{ report.rows_with_errors }}</td></tr>
+    </table>
+    {% if missing %}<h3>Missing images (upload these to Cloudinary with the barcode as Public ID, then run Sync)</h3>
+      <p><code>{{ missing|join:", " }}</code></p>{% endif %}
+    {% if errors %}<h3>Skipped rows</h3><ul>{% for e in errors %}<li style="color:#b91c1c">{{ e }}</li>{% endfor %}</ul>{% endif %}
+    <p><a class="button" href="{% url 'admin:catalog_masterproduct_changelist' %}">Go to the products</a>
+       <a class="button" href="{% url 'admin:catalog_import' %}">Import another file</a></p>
+  {% else %}
+  <p>Columns: <code>name, brand, category, pack_size, unit, barcode, mrp, tax_rate, description</code> and optional
+     <code>image</code>. Units: g, kg, ml, l, pc. Format the barcode column as <strong>Text</strong> in Excel.
      Nothing is saved until you check the preview and press Save.</p>
+  <p><strong>Images:</strong> each product's image is looked up on Cloudinary with its <strong>barcode as the Public ID</strong>.
+     Fill the <code>image</code> column only to use another Public ID (or a full address on your own Cloudinary cloud).
+     A missing image never stops a product from being imported.</p>
   <form method="post" enctype="multipart/form-data">{% csrf_token %}
     <input type="file" name="file" accept=".csv,.xlsx" required>
+    <label style="margin-left:12px"><input type="checkbox" name="replace_images" {% if replace_images %}checked{% endif %}>
+      Replace existing images of products already in the catalogue</label>
     <button type="submit" class="button default">Preview</button>
   </form>
 
@@ -16,27 +39,48 @@
     <h2 style="margin-top:24px">Preview of {{ filename }}</h2>
     <p><strong>{{ good_count }}</strong> row(s) are fine.
        <strong>{{ errors|length }}</strong> row(s) have problems and will be skipped.</p>
+    <table>
+      <tr><th style="text-align:left">Products to create</th><td>{{ totals.products }}</td></tr>
+      <tr><th style="text-align:left">Images found</th><td>{{ totals.images_found }}</td></tr>
+      <tr><th style="text-align:left">Images missing</th><td>{{ totals.images_missing }}</td></tr>
+      <tr><th style="text-align:left">Could not be verified</th><td>{{ totals.images_unverified }}</td></tr>
+      <tr><th style="text-align:left">Not checked</th><td>{{ totals.images_not_checked }}</td></tr>
+      <tr><th style="text-align:left">Without barcode</th><td>{{ totals.no_barcode }}</td></tr>
+      <tr><th style="text-align:left">Images for products already in the catalogue</th><td>{{ totals.existing_images_to_attach }}{% if not replace_images %} (only those with no image){% endif %}</td></tr>
+      <tr><th style="text-align:left">Rows with errors</th><td>{{ totals.rows_with_errors }}</td></tr>
+    </table>
+    {% if large_file %}<p style="color:#b45309">This file has more than 500 rows, so images were not checked now (the request
+      would be too slow). Import it, then use <strong>Sync images from Cloudinary</strong> on the dashboard.</p>{% endif %}
+    {% if missing %}<p><strong>Missing images:</strong> <code>{{ missing|join:", " }}</code></p>{% endif %}
     {% if errors %}
       <ul>{% for e in errors %}<li style="color:#b91c1c">{{ e }}</li>{% endfor %}</ul>
     {% endif %}
     {% if sample %}
       <table style="width:100%">
-        <thead><tr><th>Name</th><th>Brand</th><th>Pack</th><th>Category</th><th>Barcode</th></tr></thead>
+        <thead><tr><th>Row</th><th>Name</th><th>Brand</th><th>Pack</th><th>Category</th><th>Barcode</th><th>Image</th></tr></thead>
         <tbody>
         {% for r in sample %}
-          <tr><td>{{ r.name }}</td><td>{{ r.brand }}</td><td>{{ r.pack_size }} {{ r.unit }}</td>
-              <td>{{ r.category }}</td><td>{% if r.barcode %}{{ r.barcode.0 }}{% endif %}</td></tr>
+          <tr><td>{{ r.row }}</td><td>{{ r.name }}</td><td>{{ r.brand }}</td><td>{{ r.pack_size }} {{ r.unit }}</td>
+              <td>{{ r.category }}</td><td>{% if r.barcode %}{{ r.barcode.0 }}{% endif %}</td>
+              <td>{% if r.image_status == "found" %}<span style="color:#15803d">found</span>
+                  {% elif r.image_status == "missing" %}<span style="color:#b91c1c">not found</span>
+                  {% elif r.image_status == "unverified" %}<span style="color:#b45309">could not verify</span>
+                  {% elif r.image_status == "not_checked" %}not checked{% else %}-{% endif %}
+                  {% if r.image_from == "image column" %}<br><small>{{ r.image_id }}</small>{% endif %}</td></tr>
         {% endfor %}
         </tbody>
       </table>
       <p>(first 20 rows shown)</p>
+    {% endif %}
+    {% if sample or totals.existing_images_to_attach %}
       <form method="post">{% csrf_token %}
         {% if can_activate %}
           <label><input type="checkbox" name="activate"> Make them ACTIVE now (otherwise they are saved as draft)</label><br><br>
         {% endif %}
-        <button type="submit" name="commit" value="1" class="button default">Save {{ good_count }} product(s)</button>
+        <button type="submit" name="commit" value="1" class="button default">Save {{ good_count }} product(s){% if totals.existing_images_to_attach %} and {{ totals.existing_images_to_attach }} image(s){% endif %}</button>
       </form>
     {% endif %}
+  {% endif %}
   {% endif %}
 </div>
 {% endblock %}

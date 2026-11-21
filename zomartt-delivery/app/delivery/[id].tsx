@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Alert, Linking, Modal, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import OsmMap, { MapMarker } from "../../components/OsmMap";
+import LineImage from "../../components/LineImage";
 import { Button, Card, Err, Muted, Screen, colors } from "../../components/ui";
 import { api, keep } from "../../services/api";
 import { directionsUrl, searchUrl } from "../../services/navigate";
@@ -127,7 +128,12 @@ export default function DeliveryScreen() {
             {o.on_credit ? `Collect the delivery fee ₹${o.collect_amount}` : `Collect ₹${o.collect_amount}`}
           </Text>
           {o.on_credit && <Muted>This order is on credit. The items are not paid at the door.</Muted>}
-          {o.items.map((i, k) => <Muted key={k}>{i.product_name} × {Number(i.quantity)}{i.unit ? ` ${i.unit}` : ""}</Muted>)}
+          {o.items.map((i, k) => (
+            <View key={k} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
+              <LineImage uri={i.image_tiny} tapUri={i.image_thumb} name={i.product_name} />
+              <Muted>{i.product_name} × {Number(i.quantity)}{i.unit ? ` ${i.unit}` : ""}</Muted>
+            </View>
+          ))}
         </Card>
 
         <Err msg={err} />

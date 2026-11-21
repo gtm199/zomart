@@ -9,7 +9,7 @@ from apps.shops.models import Shop
 from apps.customers.models import Customer, CustomerLedger
 from .models import Order, OrderEvent, OrderItem, Shopper, ShopperCredit, SavedAddress
 
-from core.media import full_url, thumb_url
+from core.media import full_url, image_fields, image_url, thumb_url
 
 def clean_phone(value):
     digits = re.sub(r"\D", "", value or "")
@@ -120,6 +120,12 @@ class StoreProductSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "category", "category_name", "unit", "loose", "selling_price", "image", "image_full",
                   "in_stock", "stock_available", "limit_to_stock"]
 
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        # new: image_thumb / image_medium / image_tiny (null when no image). "image" (small) and "image_full" stay.
+        data.update(image_fields(obj.master_product.image, self.context.get("request")))
+        return data
+
     def get_category_name(self, obj):
         c = obj.master_product.category
         return c.name if c else ""
@@ -145,7 +151,19 @@ class StoreProductSerializer(serializers.ModelSerializer):
         return not obj.shop.allow_negative_stock
 
 
-class OrderItemSerializer(serializers.ModelSerializer):
+class LineImageMixin:
+    """Order lines: the product's small pictures (tiny for the line, thumb to open). Null when there is no image."""
+
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        master = getattr(getattr(obj, "shop_product", None), "master_product", None)
+        image = master.image if master is not None else None
+        data["image_tiny"] = image_url(image, "tiny")
+        data["image_thumb"] = image_url(image, "thumb")
+        return data
+
+
+class OrderItemSerializer(LineImageMixin, serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = ["id", "product_name", "unit", "ordered_quantity", "quantity", "unit_price", "line_total"]
@@ -308,7 +326,7 @@ class ReadySerializer(serializers.Serializer):
 
 
 # ---------------- riders ----------------
-class RiderItemSerializer(serializers.ModelSerializer):
+class RiderItemSerializer(LineImageMixin, serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = ["product_name", "unit", "quantity"]

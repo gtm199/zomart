@@ -111,6 +111,40 @@ class ProductChangeLog(models.Model):
         ordering = ["-changed_at", "-id"]
 
 
+class ImageSyncRun(models.Model):
+    """One "Sync images from Cloudinary" run: who, when, options and totals. It is also the resume point:
+    products are processed in id order and last_product_id is the last one done, so a stopped run continues
+    where it left off without checking or attaching anything twice."""
+
+    class Status(models.TextChoices):
+        RUNNING = "running"
+        FINISHED = "finished"
+        STOPPED = "stopped"      # replaced by a newer run with other options
+
+    started_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    started_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.RUNNING)
+    dry_run = models.BooleanField(default=False)
+    replace = models.BooleanField(default=False)
+    category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    brand = models.ForeignKey(Brand, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    total = models.PositiveIntegerField(default=0)            # products to look at when the run started
+    last_product_id = models.PositiveBigIntegerField(default=0)
+    processed = models.PositiveIntegerField(default=0)
+    attached = models.PositiveIntegerField(default=0)         # dry run: would be attached
+    still_missing = models.PositiveIntegerField(default=0)
+    unverified = models.PositiveIntegerField(default=0)
+    skipped = models.PositiveIntegerField(default=0)          # no barcode, or already this image
+    missing_barcodes = models.JSONField(default=list, blank=True)   # for the "still missing" CSV
+
+    class Meta:
+        ordering = ["-started_at", "-id"]
+
+    def __str__(self):
+        return f"Image sync #{self.pk} ({'preview' if self.dry_run else 'real'}, {self.status})"
+
+
 class ProductSuggestion(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending"

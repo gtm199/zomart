@@ -5,8 +5,10 @@ import { Button, Card, Err, Input, Muted, Screen, colors } from "../../component
 import { api } from "../../services/api";
 import { waLink } from "../../services/receipt";
 import DeliveryStats from "../../components/DeliveryStats";
+import ProductImage from "../../components/ProductImage";
 
-type Item = { id: number; product_name: string; unit: string; ordered_quantity: string; quantity: string; unit_price: string; line_total: string };
+type Item = { id: number; product_name: string; unit: string; ordered_quantity: string; quantity: string; unit_price: string; line_total: string;
+  image_tiny?: string | null; image_thumb?: string | null };
 type Order = {
   id: number; number: number; status: string; fulfilment: "delivery" | "pickup"; customer_name: string; customer_phone: string;
   delivery_address: string; note: string; payment_method: string; subtotal: string; delivery_fee: string; total: string;
@@ -119,10 +121,13 @@ export default function Orders() {
 
                 {o.items.map((i) => (
                   <View key={i.id} style={{ marginTop: 4 }}>
-                    <Text>
-                      {i.product_name} × {Number(i.quantity)}{i.unit ? ` ${i.unit}` : ""} = ₹{i.line_total}
-                      {Number(i.quantity) !== Number(i.ordered_quantity) ? ` (ordered ${Number(i.ordered_quantity)})` : ""}
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <ProductImage uri={i.image_tiny} fullUri={i.image_thumb} name={i.product_name} size={36} />
+                      <Text style={{ flex: 1 }}>
+                        {i.product_name} × {Number(i.quantity)}{i.unit ? ` ${i.unit}` : ""} = ₹{i.line_total}
+                        {Number(i.quantity) !== Number(i.ordered_quantity) ? ` (ordered ${Number(i.ordered_quantity)})` : ""}
+                      </Text>
+                    </View>
                     {o.status === "placed" && (
                       <Input placeholder={`Can supply (ordered ${Number(i.ordered_quantity)}, 0 = none)`} keyboardType="decimal-pad"
                         value={adjust[i.id] ?? ""} onChangeText={(v) => setAdjust({ ...adjust, [i.id]: v })} />
